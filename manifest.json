@@ -9,7 +9,7 @@
     "48": "icons/logopic1-48.png",
     "128": "icons/logopic1-128.png"
   },
-  "permissions": ["tabs","activeTab"],
+  "permissions": ["storage","tabs","activeTab"],
   "host_permissions": [
     "http://*/*",
     "https://*/*"

@@ -37,6 +37,21 @@ body{
     padding:5px;
 }
 
+.list-container{
+    width:300px;
+    height:400px;
+}
+
+.container2{
+    display: flex;
+    justify-content: center;
+}
+
+.bottom-container{
+    display: flex;
+    justify-content: center;
+}
+
 .add_button{
     font-family:'bitFont',sans-serif;
 }
