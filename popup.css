@@ -1,0 +1,43 @@
+
+@font-face{
+    font-family:'bitFont';
+    src:url(fonts/PressStart2P-Regular.ttf) format('truetype');
+    font-weight:normal;
+    font-style:normal;
+}
+
+body{
+    font-family:'bitFont',sans-serif;
+}
+
+.container1{
+    display:flex;
+    width:400px;
+    /* border:2px solid black; */
+    padding:10px;
+    gap:15px;
+    flex-wrap:wrap;
+}
+
+.logo_pic{
+    padding:15px;
+    /* border: 2px solid pink; */
+}
+
+.main_heading{
+    padding:20px;
+    margin-left:10px;
+    font-size:20px;
+    /* border:2px solid pink; */
+}
+
+.sub_heading{
+    margin-left:70px;
+    /* border:2px solid pink; */
+    padding:5px;
+}
+
+.add_button{
+    font-family:'bitFont',sans-serif;
+}
+
