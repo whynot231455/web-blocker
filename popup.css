@@ -10,6 +10,10 @@ body{
     font-family:'bitFont',sans-serif;
 }
 
+li{
+    list-style-type:none;
+}
+
 .container1{
     display:flex;
     width:400px;
@@ -38,12 +42,15 @@ body{
 }
 
 .list-container{
+    border:solid black;
     width:300px;
     height:400px;
+    padding:0px;
 }
 
 .container2{
     display: flex;
+    border:solid black;
     justify-content: center;
 }
 
@@ -52,7 +59,6 @@ body{
     justify-content: center;
 }
 
-.add_button{
-    font-family:'bitFont',sans-serif;
+button{
+    font-family:'bitfont',sans-serif;
 }
-
