@@ -14,7 +14,7 @@ async function getCurrentTabURL(){
 async function getURLs(){
     const results=await chrome.storage.local.get('urls');
     const urls=results.urls;
-    return urls;
+    return urls || [];
 }
 
 async function loadURL(){
@@ -29,26 +29,27 @@ async function loadURL(){
     }
 }
 
-async function add_elements(){
-    const currentTabURL= await getCurrentTabURL();
-    
-    //display URLS 
-    const hostname=new URL(currentTabURL).hostname;
-    const li = document.createElement('li');
-    li.textContent=hostname;
-    list_table.appendChild(li);
+async function add_elements() {
+    const currentTabURL = await getCurrentTabURL();
+    const URL_list = await getURLs(); 
+    const currentHostname = new URL(currentTabURL).hostname;
+    const storedHostnames = URL_list.map(url => new URL(url).hostname);
 
-    //saving URLS
-    chrome.storage.local.get('urls', (result) => {
-        const urls = result.urls || [];
-        urls.unshift(currentTabURL);
-        chrome.storage.local.set({ urls });
-    });
+    //display the list of hostnames
+    if (!storedHostnames.includes(currentHostname)) {
+        const li = document.createElement('li');
+        li.textContent = currentHostname;
+        list_table.appendChild(li);
+
+        //saves the urls
+        URL_list.unshift(currentTabURL);
+        await chrome.storage.local.set({ urls: URL_list });
+    }
 }
+
 
 async function removeAll_elements(){
     await chrome.storage.local.set({ urls: [] });
-    const list_table=document.querySelector(".list_table");
     if(list_table){
         list_table.innerHTML="";
     }
