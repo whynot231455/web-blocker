@@ -5,7 +5,6 @@ const clear_button = document.querySelector('.clear_button');
 add_button.addEventListener("click",add_elements);
 clear_button.addEventListener("click",removeAll_elements);
 loadURL();
-getURLs();
 
 async function getCurrentTabURL(){
     const [tab] = await chrome.tabs.query({active: true , currentWindow: true});
@@ -22,8 +21,9 @@ async function loadURL(){
     const urls=await getURLs();
     if (urls && Array.isArray(urls)){
         urls.forEach(url => {
+            const hostname = new URL(url).hostname;
             const li = document.createElement('li');
-            li.textContent = url;
+            li.textContent = hostname ;
             list_table.appendChild(li);
         });
     }
@@ -33,8 +33,9 @@ async function add_elements(){
     const currentTabURL= await getCurrentTabURL();
     
     //display URLS 
+    const hostname=new URL(currentTabURL).hostname;
     const li = document.createElement('li');
-    li.textContent=currentTabURL;
+    li.textContent=hostname;
     list_table.appendChild(li);
 
     //saving URLS
