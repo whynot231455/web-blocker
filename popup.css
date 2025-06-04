@@ -1,4 +1,3 @@
-
 @font-face{
     font-family:'bitFont';
     src:url(fonts/PressStart2P-Regular.ttf) format('truetype');
@@ -6,12 +5,8 @@
     font-style:normal;
 }
 
-body{
+*{
     font-family:'bitFont',sans-serif;
-}
-
-li{
-    list-style-type:none;
 }
 
 .container1{
@@ -44,21 +39,27 @@ li{
     padding:5px;
 }
 
+.main_heading2 {
+    text-align: center;
+    width: 100%;
+    margin: 10px 0;
+}
+
 .list-container{
     display: flex;
     flex-direction: column;
-    align-items: center;
     /* border: 2px solid black; */
-    width: 300px;
-    height: 400px;
-    padding: 10px;
+    width: 100%;
 }
 
-.container2{
-    display: flex;
-    /* border:solid black; */
-    justify-content: center;
+.list_table li {
+    text-align: left;
+    width:100%;   
+    margin-left: 0;
+    margin-bottom:15px;
+    list-style-type: none;
 }
+
 
 .bottom-container{
     display: flex;
