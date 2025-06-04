@@ -35,6 +35,7 @@
 .sub_heading{
     margin-left:70px;
     margin-top:0px;
+    width:100%;
     /* border:2px solid pink; */
     padding:5px;
 }

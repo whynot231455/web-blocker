@@ -17,13 +17,35 @@ async function getURLs(){
     return urls || [];
 }
 
-async function loadURL(){
-    const urls=await getURLs();
-    if (urls && Array.isArray(urls)){
+async function loadURL() {
+    const urls = await getURLs();
+    if (urls && Array.isArray(urls)) {
         urls.forEach(url => {
             const hostname = new URL(url).hostname;
+
             const li = document.createElement('li');
-            li.textContent = hostname ;
+            li.style.display = 'flex';
+            li.style.alignItems = 'center';
+            li.style.gap = '10px';
+
+            const favicon = document.createElement('img');
+            favicon.src = `https://www.google.com/s2/favicons?domain=${hostname}`;
+            favicon.width = 16;
+            favicon.height = 16;
+
+            const span = document.createElement('span');
+            span.textContent = hostname;
+
+            const close_icon = document.createElement('img');
+            close_icon.src="./icons/delete-icon.svg";
+            close_icon.className='delete-icon';
+            close_icon.width=16;
+            close_icon.height=16;
+
+            li.appendChild(favicon);
+            li.appendChild(span);
+            li.appendChild(close_icon);
+
             list_table.appendChild(li);
         });
     }
@@ -31,22 +53,62 @@ async function loadURL(){
 
 async function add_elements() {
     const currentTabURL = await getCurrentTabURL();
-    const URL_list = await getURLs(); 
+    const URL_list = await getURLs();
     const currentHostname = new URL(currentTabURL).hostname;
     const storedHostnames = URL_list.map(url => new URL(url).hostname);
 
-    //display the list of hostnames
     if (!storedHostnames.includes(currentHostname)) {
         const li = document.createElement('li');
-        li.textContent = currentHostname;
-        list_table.appendChild(li);
+        li.style.display = 'flex';
+        li.style.alignItems = 'center';
+        li.style.gap = '10px';
 
-        //saves the urls
-        URL_list.unshift(currentTabURL);
-        await chrome.storage.local.set({ urls: URL_list });
+        // Create favicon <img>
+        const favicon = document.createElement('img');
+        favicon.src = `https://www.google.com/s2/favicons?domain=${currentHostname}`;
+        favicon.width = 16;
+        favicon.height = 16;
+
+        // Add hostname text
+        const span = document.createElement('span');
+        span.textContent = currentHostname;
+
+        const close_icon = document.createElement('img');
+        close_icon.src="./icons/delete-icon.svg"
+        close_icon.className='delete-icon';
+        close_icon.width=16;
+        close_icon.height=16;
+
+        li.appendChild(favicon);
+        li.appendChild(span);
+        li.appendChild(close_icon);
+
+        list_table.appendChild(li);
     }
+
+    // Save the URL
+    chrome.storage.local.get('urls', (result) => {
+        const urls = result.urls || [];
+        const hostNames =urls.map(url => new URL(url).hostname);
+        if (!hostNames.includes(currentHostname)) {
+            urls.unshift(currentTabURL);
+        }
+        chrome.storage.local.set({ urls });
+    });
 }
 
+list_table.addEventListener("click",async function(event) {
+    if (event.target.classList.contains('delete-icon')) {
+        const listItem = event.target.closest('li');
+        const hostname = listItem.querySelector('span').textContent;
+        listItem.remove();
+
+        // Remove from storage
+        const urls = await getURLs();
+        const updatedURLs = urls.filter(url => new URL(url).hostname !== hostname);
+        await chrome.storage.local.set({ urls: updatedURLs });
+    }
+})
 
 async function removeAll_elements(){
     await chrome.storage.local.set({ urls: [] });
