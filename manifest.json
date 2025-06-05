@@ -9,7 +9,7 @@
     "48": "icons/logopic1-48.png",
     "128": "icons/logopic1-128.png"
   },
-  "permissions": ["storage","tabs","activeTab"],
+  "permissions": ["storage","scripting","tabs","activeTab"],
   "host_permissions": [
     "http://*/*",
     "https://*/*"
@@ -23,5 +23,8 @@
     },
     "default_title": "Ctrl+Blck",
     "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
   }
 }

@@ -71,3 +71,16 @@
 button{
     font-family:'bitfont',sans-serif;
 }
+
+.add_button{
+    background-color:#FF3232;
+    color:white;
+    width:200px;
+    height:50px;
+}
+
+.clear_button{
+    color:black;
+    height:50px;
+    width:150px;
+}
