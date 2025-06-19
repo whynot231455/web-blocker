@@ -1,6 +1,6 @@
 {
   "name": "Ctrl+Blck",
-  "description": "Instantly close all the distractions while browsing.",
+  "description": "Close all the distractions while browsing.",
   "version": "1.0",
   "manifest_version": 3,
   "icons": {
@@ -9,10 +9,13 @@
     "48": "icons/logopic1-48.png",
     "128": "icons/logopic1-128.png"
   },
-  "permissions": ["storage","scripting","tabs","activeTab"],
+  "permissions": [
+    "storage",
+    "scripting",
+    "tabs"
+  ],
   "host_permissions": [
-    "http://*/*",
-    "https://*/*"
+    "<all_urls>"
   ],
   "action": {
     "default_icon": {
@@ -25,12 +28,6 @@
     "default_popup": "popup.html"
   },
   "background": {
-    "service_worker": "scripts/background.js"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["scripts/blocker.js"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+    "service_worker": "background.js"
+  }
 }

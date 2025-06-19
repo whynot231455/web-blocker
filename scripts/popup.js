@@ -41,6 +41,7 @@ async function loadURL() {
             close_icon.className='delete-icon';
             close_icon.width=16;
             close_icon.height=16;
+            close_icon.style.cursor='pointer';
 
             li.appendChild(favicon);
             li.appendChild(span);
@@ -78,6 +79,7 @@ async function add_elements() {
         close_icon.className='delete-icon';
         close_icon.width=16;
         close_icon.height=16;
+        close_icon.style.cursor='pointer';
 
         li.appendChild(favicon);
         li.appendChild(span);
@@ -116,3 +118,5 @@ async function removeAll_elements(){
         list_table.innerHTML="";
     }
 }
+
+
