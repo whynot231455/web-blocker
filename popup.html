@@ -1,25 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <title>CTRL+BLCK Popup </title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="./popup.css" />
 </head>
 <body>
-    <div class="container1">
-        <img class="logo_pic" src="icons/logopic1-32.png" alt="Logo">
-        <h1 class="main_heading">CTRL+BLCK</h1>
-        <p class="sub_heading">block all distractions</p>
+    <div class="popup">
+        <div class="upper-container">
+        <img class="logo_pic" src="icons/logopic1-128.png" alt="Logo">
+            <h1>CTRL+BLCK</h1>
+            <img class="home" src="./icons/home-icon.svg" alt="Home" />
     </div>
-    <div class="container2">
-        <p class="main_heading2">URL List:</p>
+
+    <p class="sub_heading">block all distractions</p>
+
+    <div class="url-container">
+        <p class="main_heading2">URL LIST:</p>
         <div class="list-container">
             <ul class="list_table"></ul>
         </div>
     </div>
-    <div class="bottom-container">
-        <button class="add_button" type="button">Add Site +</button>
-        <button class="clear_button" type="button">Clear all </button>
+    <button class="add_button" type="button">ADD SITE +</button>
+    <button class="clear_button" type="button">CLEAR ALL</button>
     </div>
     <script src="scripts/popup.js"></script>
 </body>
