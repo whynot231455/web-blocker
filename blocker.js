@@ -1,4 +1,3 @@
-// Create blocker overlay
 const blocker = document.createElement('div');
 blocker.style.position = 'fixed';
 blocker.style.top = 0;

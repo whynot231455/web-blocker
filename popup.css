@@ -9,14 +9,15 @@
     font-family:'bitFont',sans-serif;
 }
 
+/* Keep original body dimensions - no fixed width/height */
 body {
-  padding: 0.7rem ;
-  background: white;
-  color: black;
+    padding: 0.7rem;
+    background: white;
+    color: black;
+    margin: 0;
 }
 
 .upper-container{
-    /* border:2px solid pink; */
     display:flex;
     justify-content: space-evenly;
     gap:20px;
@@ -26,12 +27,10 @@ body {
 .logo_pic{
     width:50px;
     height:50px;
-    /* border: 2px solid pink; */
 }
 
 .main_heading{
     font-size:20px;
-    /* border:2px solid pink; */
 }
 
 .sub_heading{
@@ -53,17 +52,27 @@ body {
 .list-container{
     display: flex;
     flex-direction: column;
-    /* border: 2px solid black; */
+    margin-top:20px;
     width: 100%;
     overflow-y: auto;
+    padding-left: 10px;
+}
+
+.list_table {
+    padding-left: 0;
+    margin: 0;
 }
 
 .list_table li {
     text-align: left;
-    width:100%;   
+    width: 100%;   
     margin-left: 0;
-    margin-bottom:15px;
+    margin-bottom: 15px;
     list-style-type: none;
+    padding-left: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .add_button{
@@ -75,6 +84,11 @@ body {
     border:none;
     border-radius:10px;
     cursor:pointer;
+}
+
+.add_button:hover {
+    background-color: #ec3939;
+    transform: translateY(-1px);
 }
 
 .clear_button{
@@ -95,4 +109,223 @@ body {
     display:block;
     margin: 0.5rem auto;
     text-align: center;
+}
+
+/* Fixed Confirmation Screen Styles - no fixed dimensions */
+.confirmation-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, white 0%, white 40%, #FF3232 40%, #FF3232 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 1000;
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+
+.confirmation-content {
+    text-align: center;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-around;
+    height: 100%;
+}
+.website-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.blocked-url {
+    font-size: 10px;
+    color: black;
+    margin: 5px 0;
+    word-break: break-word;
+    line-height: 1.2;
+}
+
+.website-icon {
+    background: white;
+    border: 3px solid black;
+    border-radius: 10px;
+    width: 50px;
+    height: 50px;
+    margin: 10px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.website-icon img {
+    width: 24px;
+    height: 24px;
+}
+
+.confirmation-message {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.confirmation-message h3 {
+    color: white;
+    font-size: 8px;
+    line-height: 1.3;
+    margin: 0;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+.reload_button {
+    background-color: white;
+    color: black;
+    border: 3px solid black;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 8px;
+    font-family: 'bitFont', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 10px;
+}
+
+.reload_button:hover {
+    background-color: #f0f0f0;
+    transform: translateY(-1px);
+}
+
+.reload_button:active {
+    transform: translateY(0);
+}
+
+.url-limit {
+    font-size: 10px;
+    color: #666;
+    font-weight: normal;
+    margin-left: 5px;
+}
+
+
+/* Confirmation Screen Styles - Bigger window with centered icon */
+.confirmation-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 320px;
+    height: 450px;
+    background: linear-gradient(to bottom, white 0%, white 30%, #FF3232 30%, #FF3232 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 1000;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.confirmation-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0;
+    box-sizing: border-box;
+}
+
+.website-info {
+    /* Center the icon in the white area (40% of total height) */
+    height: 40%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.blocked-url {
+    font-size: 17px;
+    color: black;
+    margin: 0 0 15px 0;
+    /* word-break: break-word; */
+    line-height: 1.3;
+    text-align: center;
+}
+
+.website-icon {
+    background: white;
+    border: 4px solid black;
+    border-radius: 15px;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Position the icon to straddle the white/red boundary */
+    position: relative;
+    z-index: 10;
+    margin-top: 20px;
+}
+
+.website-icon img {
+    width: 48px;
+    height: 48px;
+}
+
+.confirmation-message {
+    /* Red area content */
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 80%;
+    padding: 0 20px;
+}
+
+.confirmation-message h3 {
+    color: white;
+    font-size: 17px;
+    line-height: 1.4;
+    margin: 0;
+    text-align: center;
+}
+
+.reload_button {
+    background-color: white;
+    color: black;
+    border: 4px solid black;
+    border-radius: 15px;
+    padding: 20px 30px;
+    font-size: 15px;
+    font-family: 'bitFont', sans-serif;
+    cursor: pointer;
+    transition: transform 0.1s ease, background-color 0.1s ease, color 0.1s ease, box-shadow 0.1s ease;
+    margin-bottom: 24px; /* Extra space for lift */
+}
+
+
+.reload_button:hover {
+    background-color: white;
+    color: black;
+    border: 4px solid black;
+    /* Lift button up and add shadow underneath */
+    transform: translateY(-6px);
+    box-shadow: 0 6px 0 rgba(0, 0, 0, 1);
+}
+
+.reload_button:active {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
 }

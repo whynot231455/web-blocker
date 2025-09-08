@@ -1,0 +1,135 @@
+@font-face {
+    font-family: 'bitFont';
+    src: url('../fonts/PressStart2P-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+*{
+    font-family:'bitFont',sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: monospace;
+    background: white;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    width: 80%;
+    max-width: 800px;
+    margin: auto;
+    padding-top: 20px;
+}
+
+
+header {
+    display: flex;
+    justify-content: center;   /* center the logo + title block */
+    align-items: center;
+    position: relative;        /* needed for absolute positioning of settings */
+}
+
+.header-center {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+}
+
+.header-center img{
+    max-width: 100%;
+    height: auto;
+}
+
+.header-center h1{
+    font-size:3em;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ctrl-logo {
+    width: 40px;
+    height: 40px;
+}
+
+.settings {
+    position: absolute;
+    right: 20px;   /* push account icon to far right */
+    display: flex;
+    align-items: center;
+}
+
+.account-icon {
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+}
+
+.tagline {
+    text-align: center;
+    margin-top: 5px;
+    font-size: 14px;
+}
+
+.url-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.search-bar input {
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    width: 200px;
+}
+
+.search-bar button {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+#urlList {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+}
+
+#urlList li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+#urlList li .icon {
+    width: 20px;
+    height: 20px;
+}
+
+#urlList li i {
+    margin-left: auto;
+    cursor: pointer;
+}
+
+#urlList li i.delete {
+    margin-left: 10px;
+    color: red;
+}
