@@ -4,10 +4,12 @@
     font-weight: normal;
     font-style: normal;
 }
-*{
-    font-family:'bitFont',sans-serif;
+
+* {
+    font-family: 'bitFont', sans-serif;
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
 }
 
 body {
@@ -22,69 +24,207 @@ body {
     max-width: 800px;
     margin: auto;
     padding-top: 20px;
+    position: relative;
 }
 
-
+/* Centered Header */
 header {
-    display: flex;
-    justify-content: center;   /* center the logo + title block */
-    align-items: center;
-    position: relative;        /* needed for absolute positioning of settings */
-}
-
-.header-center {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    display: block;
+    margin-bottom: 1rem;
     text-align: center;
+    width: 100%;
 }
 
-.header-center img{
-    max-width: 100%;
-    height: auto;
-}
-
-.header-center h1{
-    font-size:3em;
-}
-
-.logo-section {
+.header-left {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 0.75rem;
+    justify-content: center;
+    width: 100%;
+    margin: 0 auto;
 }
 
 .ctrl-logo {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
+    display: block;
 }
 
-.settings {
+h1 {
+    font-size: 28px;
+    color: black;
+    line-height: 1;
+    margin: 0;
+    display: block;
+    text-align: center;
+}
+
+/* Settings and Account Icons - Top Right */
+.header-right {
     position: absolute;
-    right: 20px;   /* push account icon to far right */
+    top: 20px;
+    right: 20px;
     display: flex;
     align-items: center;
+    gap: 1rem;
 }
 
+.settings-icon,
 .account-icon {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
 }
 
+.settings-icon:hover,
+.account-icon:hover {
+    opacity: 1;
+}
+
+/* Centered Tagline */
 .tagline {
     text-align: center;
-    margin-top: 5px;
     font-size: 14px;
+    margin-top: 1rem;
+    margin-bottom: 2rem;
 }
 
+/* Fixed URL Section */
 .url-section {
-    display: flex;
-    align-items: center;
-    gap: 10px;
     margin-top: 20px;
 }
 
+.url-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.url-header h2 {
+    font-size: 16px;
+    color: black;
+    margin: 0;
+}
+
+
+/* Fixed Search Container */
+.search-container {
+    display: flex;
+    align-items: center;
+    background: #f8f8f8;
+    border: none;
+    border-radius: 12px;
+    padding: 0.75rem 0.85rem;
+    gap: 10px;
+    min-width: 300px;
+    max-width: 800px;
+}
+
+.search-icon {
+    width: 25px;
+    height: 25px;
+    opacity: 1;
+}
+
+#searchInput {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: 'bitFont', sans-serif;
+    font-size: 11px;
+    color: #9D9D9D;
+    width: 100%;
+}
+
+#searchInput::placeholder {
+    color: #9D9D9D;
+    font-size: 11px;
+}
+
+.add-btn {
+    background: #ffffff;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.add-btn:hover {
+    background: #ddd;
+    color: #333;
+}
+
+/* Fixed URL List */
+#urlList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.url-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.url-item .icon {
+    width: 20px;
+    height: 20px;
+}
+
+.url-text {
+    flex: 1;
+    font-size: 12px;
+    color: black;
+}
+
+.buttons-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.edit,
+.delete {
+    cursor: pointer;
+    color: #666;
+    font-size: 14px;
+    transition: color 0.2s;
+    width: 16px;
+    height: 16px;
+}
+
+.edit:hover {
+    color: #007bff;
+}
+
+.delete:hover {
+    color: #dc3545;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: left;
+    color: #666;
+    font-size: 12px;
+    padding: 20px 0;
+    font-style: normal;
+    border-bottom: none;
+}
+
+/* Legacy styles for compatibility */
 .search-bar {
     display: flex;
     align-items: center;
@@ -103,12 +243,6 @@ header {
     border: none;
     font-size: 20px;
     cursor: pointer;
-}
-
-#urlList {
-    list-style: none;
-    padding: 0;
-    margin-top: 20px;
 }
 
 #urlList li {
