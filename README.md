@@ -1,6 +1,6 @@
 <h1 align="center" id="title">CTRL+BLCK</h1>
 
-<p align="center"><img src="https://socialify.git.ci/whynot231455/web-blocker/image?description=1&amp;font=Source+Code+Pro&amp;language=1&amp;name=1&amp;owner=1&amp;pattern=Solid&amp;stargazers=1&amp;theme=Dark" alt="project-image"></p>
+<p align="center"><img width="800" height="600" alt="mircosoft-forms header" src="https://github.com/user-attachments/assets/a95c32d3-cfed-4f54-9aaf-ab15b426dcb7" /></p>
 
 <p id="description">⛔ CTRL+BLCK ⛔- A lightweight Chrome extension that boosts productivity by blocking distracting websites with seamless one-click implementation.</p>
 
