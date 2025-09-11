@@ -5,10 +5,14 @@
 <p id="description">⛔ CTRL+BLCK ⛔- A lightweight Chrome extension that boosts productivity by blocking distracting websites with seamless one-click implementation.</p>
 
 <h2>🖼️ Screenshots</h2>
+1. Confirmation Page after Adding the website
+<img width="590" height="610" alt="Confirmation Page" src="https://github.com/user-attachments/assets/e7528ba0-4094-4650-9727-2270ec9007d1" />
+2. A blocked website with a countdown
 <img width="1919" height="879" alt="Blocked Site" src="https://github.com/user-attachments/assets/0e19c251-33df-41ab-bcdb-3b3ce17fcf33" />
+3. Main Website with URL List
+<img width="1919" height="864" alt="Main Website" src="https://github.com/user-attachments/assets/cd881434-3f76-4d8e-94fa-2ce3fcec522c" />
 
 <h2>🧐 Features</h2>
-
 Here are some of the project's best features:
 
 *   Block distracting websites instantly by adding them to your block list
