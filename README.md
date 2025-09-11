@@ -55,6 +55,3 @@ Technologies used in the project:
 3. Enable "Developer mode" in the top right
 4. Click "Load unpacked" and select the extension folder
 5. The CTRL+BLCK icon should appear in your browser toolbar
-
-### Alternative: Chrome Web Store
-*Coming soon - Extension will be available on the Chrome Web Store*
