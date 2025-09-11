@@ -35,3 +35,26 @@ Technologies used in the project:
 *   JavaScript
 *   Chrome Extensions Manifest V3
 *   Chrome Extension APIs
+
+## 📖 How to Use
+
+1. **Quick Block**: Click the CTRL+BLCK icon while on any website and hit "ADD SITE +"
+2. **Manage Sites**: Right-click the extension icon and select "Options" to open the main dashboard
+3. **Remove Sites**: Use the delete icon next to any site in your block list
+4. **Search & Filter**: Use the search bar to find specific blocked sites quickly
+
+### Pro Tips:
+- The extension shows only the last 5 sites in the pop-up for quick access
+- Use the main dashboard for full site management
+- Sites are blocked immediately after adding - just reload the page!
+
+## 🚀 Installation
+
+1. Download or clone this repository
+2. Open Chrome and navigate to `chrome://extensions/`
+3. Enable "Developer mode" in the top right
+4. Click "Load unpacked" and select the extension folder
+5. The CTRL+BLCK icon should appear in your browser toolbar
+
+### Alternative: Chrome Web Store
+*Coming soon - Extension will be available on the Chrome Web Store*
