@@ -55,3 +55,8 @@ Technologies used in the project:
 3. Enable "Developer mode" in the top right
 4. Click "Load unpacked" and select the extension folder
 5. The CTRL+BLCK icon should appear in your browser toolbar
+
+## 📝 Feedback & Suggestions
+
+Facing any new issues or have new ideas to implement?
+https://forms.gle/ddef4SouyJ6W2ShV8
