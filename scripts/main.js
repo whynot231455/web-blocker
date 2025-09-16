@@ -1,12 +1,45 @@
 document.addEventListener("DOMContentLoaded", function () {
     const urlList = document.getElementById("urlList");
     const searchInput = document.getElementById("searchInput");
-    const addBtn = document.getElementById("addBtn");
-    
+   
     let allUrls = []; // Store all URLs for filtering
 
     // Fetch URLs from chrome.storage and initialize
     loadURLs();
+
+    // ✅ Function to clean up existing duplicates
+    function removeDuplicateHostnames() {
+        chrome.storage.local.get({ urls: [] }, function (data) {
+            const urls = data.urls;
+            const seenHostnames = new Set();
+            const cleanedUrls = [];
+            
+            urls.forEach(url => {
+                const hostname = extractHostname(url);
+                if (!seenHostnames.has(hostname)) {
+                    seenHostnames.add(hostname);
+                    // Store normalized URL (remove www from domain-only entries)
+                    let cleanUrl = url;
+                    if (!url.startsWith('http://') && !url.startsWith('https://') && url.toLowerCase().startsWith('www.')) {
+                        cleanUrl = url.substring(4);
+                    }
+                    cleanedUrls.push(cleanUrl);
+                }
+            });
+            
+            // Only update if we found duplicates
+            if (cleanedUrls.length !== urls.length) {
+                chrome.storage.local.set({ urls: cleanedUrls }, function() {
+                    allUrls = cleanedUrls;
+                    renderList(allUrls);
+                    console.log(`Removed ${urls.length - cleanedUrls.length} duplicate hostnames`);
+                });
+            }
+        });
+    }
+
+    // ✅ Call cleanup function on load
+    removeDuplicateHostnames();
 
     // Listen for storage changes from other parts of the extension
     chrome.storage.onChanged.addListener(function(changes, namespace) {
@@ -33,21 +66,47 @@ document.addEventListener("DOMContentLoaded", function () {
         loadURLs();
     });
 
-    // Add URL functionality
-    addBtn.addEventListener("click", function() {
-        addURL();
-    });
-
-    // Allow adding URL by pressing Enter
+    // ✅ ONLY Enter key adds URL now
     searchInput.addEventListener("keypress", function(e) {
         if (e.key === "Enter") {
             addURL();
         }
     });
 
-    // Search filter - now searches by hostname
+    // ✅ REAL-TIME validation and color changes as user types
     searchInput.addEventListener("input", function () {
-        const filter = searchInput.value.toLowerCase();
+        const inputValue = searchInput.value.trim();
+        const searchContainer = document.querySelector('.search-container');
+        
+        // Reset to default state first
+        searchContainer.style.borderColor = "#ddd";
+        searchContainer.style.boxShadow = "none";
+        
+        if (inputValue === "") {
+            // Empty input - default state
+            searchInput.placeholder = "Search / Add Website (Press Enter to add)";
+        } else if (!isValidUrl(inputValue)) {
+            // Invalid URL - red state
+            searchContainer.style.borderColor = "#dc3545";
+            searchContainer.style.boxShadow = "0 0 0 2px rgba(220, 53, 69, 0.2)";
+        } else {
+            // Check for duplicates in real-time
+            const newHostname = extractHostname(inputValue);
+            const existingHostnames = allUrls.map(url => extractHostname(url));
+            
+            if (existingHostnames.includes(newHostname)) {
+                // Duplicate - yellow state
+                searchContainer.style.borderColor = "#ffc107";
+                searchContainer.style.boxShadow = "0 0 0 2px rgba(255, 193, 7, 0.2)";
+            } else {
+                // Valid and unique - green state
+                searchContainer.style.borderColor = "#28a745";
+                searchContainer.style.boxShadow = "0 0 0 2px rgba(40, 167, 69, 0.2)";
+            }
+        }
+        
+        // Filter the list based on input (existing search functionality)
+        const filter = inputValue.toLowerCase();
         const filteredURLs = allUrls.filter(url => {
             const hostname = extractHostname(url);
             return hostname.toLowerCase().includes(filter);
@@ -63,50 +122,129 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Add new URL
+    // ✅ SIMPLIFIED Add URL function (validation already done in real-time)
     function addURL() {
         const newUrl = searchInput.value.trim();
-        if (!newUrl) return;
+        const searchContainer = document.querySelector('.search-container');
+        
+        if (!newUrl) {
+            // Focus on search input and show helpful guidance
+            searchInput.focus();
+            searchInput.placeholder = "Type a website to block (e.g. youtube.com)";
+            
+            // ✅ Apply blue styling to search container
+            searchContainer.style.borderColor = "#007bff";
+            searchContainer.style.boxShadow = "0 0 0 3px rgba(0, 123, 255, 0.25)";
+            
+            // Reset styling after 3 seconds
+            setTimeout(() => {
+                searchInput.placeholder = "Add Website (Press Enter to add)";
+                searchContainer.style.borderColor = "#ddd";
+                searchContainer.style.boxShadow = "none";
+            }, 3000);
+            return;
+        }
 
         // Basic URL validation
         if (!isValidUrl(newUrl)) {
-            alert("Please enter a valid URL or domain name");
+            // ✅ Apply red styling to search container with stronger effect
+            searchContainer.style.borderColor = "#dc3545";
+            searchContainer.style.boxShadow = "0 0 0 3px rgba(220, 53, 69, 0.4)";
+            
+            alert("Please enter a valid URL or domain name\n\nExamples:\n• youtube.com\n• facebook.com\n• https://twitter.com");
+            searchInput.focus();
+            searchInput.select();
+            
+            // Reset after 3 seconds
+            setTimeout(() => {
+                // Trigger input event to restore real-time validation
+                searchInput.dispatchEvent(new Event('input'));
+            }, 3000);
             return;
         }
 
         chrome.storage.local.get({ urls: [] }, function (data) {
             const urls = data.urls;
             
-            // Check if URL already exists (compare by hostname)
+            // ✅ Check if hostname already exists
             const newHostname = extractHostname(newUrl);
             const existingHostnames = urls.map(url => extractHostname(url));
             
             if (existingHostnames.includes(newHostname)) {
+                // ✅ Apply yellow styling with stronger effect
+                searchContainer.style.borderColor = "#ffc107";
+                searchContainer.style.boxShadow = "0 0 0 3px rgba(255, 193, 7, 0.4)";
+                
                 alert("This website is already in your blocked list");
+                searchInput.focus();
+                searchInput.select();
+                
+                // Reset after 3 seconds
+                setTimeout(() => {
+                    // Trigger input event to restore real-time validation
+                    searchInput.dispatchEvent(new Event('input'));
+                }, 3000);
                 return;
             }
 
-            // Add new URL
-            urls.push(newUrl);
+            // ✅ NORMALIZE: Store the URL without www if it's a domain-only entry
+            let urlToStore = newUrl;
+            if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
+                if (newUrl.toLowerCase().startsWith('www.')) {
+                    urlToStore = newUrl.substring(4);
+                }
+            }
+
+            // Add new URL with success feedback
+            urls.push(urlToStore);
             chrome.storage.local.set({ urls: urls }, function() {
                 allUrls = urls;
                 renderList(allUrls);
+                
+                // Success feedback
                 searchInput.value = ""; // Clear input
+                searchInput.placeholder = "✓ Website added successfully!";
+                
+                // ✅ Apply strong green styling for success
+                searchContainer.style.borderColor = "#28a745";
+                searchContainer.style.boxShadow = "0 0 0 3px rgba(40, 167, 69, 0.4)";
+                
+                // Reset to normal after 2 seconds
+                setTimeout(() => {
+                    searchInput.placeholder = "Add Website (Press Enter to add)";
+                    searchContainer.style.borderColor = "#ddd";
+                    searchContainer.style.boxShadow = "none";
+                }, 2000);
             });
         });
     }
 
-    // Extract hostname from URL
+    // Rest of your functions remain the same...
+    // ✅ Extract hostname from URL and normalize it
     function extractHostname(url) {
         try {
+            let hostname;
+            
             if (url.startsWith('http://') || url.startsWith('https://')) {
-                return new URL(url).hostname;
+                hostname = new URL(url).hostname;
             } else {
                 // Handle domain-only entries
-                return url.split('/')[0];
+                hostname = url.split('/')[0];
             }
+            
+            // ✅ NORMALIZE: Remove 'www.' prefix to avoid duplicates
+            if (hostname.startsWith('www.')) {
+                hostname = hostname.substring(4);
+            }
+            
+            return hostname.toLowerCase();
         } catch (e) {
-            return url; // Return original if parsing fails
+            // If parsing fails, try to clean up manually
+            let cleanUrl = url.toLowerCase();
+            if (cleanUrl.startsWith('www.')) {
+                cleanUrl = cleanUrl.substring(4);
+            }
+            return cleanUrl.split('/')[0];
         }
     }
 
@@ -143,16 +281,28 @@ document.addEventListener("DOMContentLoaded", function () {
             const buttonsContainer = document.createElement("div");
             buttonsContainer.className = "buttons-container";
 
-            const editBtn = document.createElement("i");
-            editBtn.className = "fas fa-pen edit";
+            // ✅ Create EDIT button as image
+            const editBtn = document.createElement("img");
+            editBtn.src = "/icons/edit-icon.svg"; // Use edit icon image
+            editBtn.className = "edit-icon";
             editBtn.title = "Edit URL";
+            editBtn.style.width = "20px";
+            editBtn.style.height = "20px";
+            editBtn.style.cursor = "pointer";
+            editBtn.style.opacity = "1";
             editBtn.addEventListener("click", () => {
                 editURL(url);
             });
 
-            const deleteBtn = document.createElement("i");
-            deleteBtn.className = "fas fa-trash delete";
+            // ✅ Create DELETE button as image
+            const deleteBtn = document.createElement("img");
+            deleteBtn.src = "/icons/delete-icon.svg"; // Use trash icon image
+            deleteBtn.className = "delete-icon";
             deleteBtn.title = "Delete URL";
+            deleteBtn.style.width = "20px";
+            deleteBtn.style.height = "20px";
+            deleteBtn.style.cursor = "pointer";
+            deleteBtn.style.opacity = "1";
             deleteBtn.addEventListener("click", () => {
                 if (confirm(`Are you sure you want to remove "${hostname}" from your blocked list?`)) {
                     deleteURL(url);
@@ -169,7 +319,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Edit URL
+    // ✅ UPDATED Edit URL with duplicate prevention
     function editURL(oldUrl) {
         const newUrl = prompt("Edit URL:", oldUrl);
         if (!newUrl || newUrl === oldUrl) return;
@@ -183,7 +333,7 @@ document.addEventListener("DOMContentLoaded", function () {
         chrome.storage.local.get({ urls: [] }, function (data) {
             let urls = data.urls;
             
-            // Check if new URL already exists (compare by hostname)
+            // ✅ IMPROVED: Check if new hostname already exists (exclude current URL)
             const newHostname = extractHostname(newUrl);
             const existingHostnames = urls.map(url => extractHostname(url)).filter(h => h !== extractHostname(oldUrl));
             
@@ -192,8 +342,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
 
+            // ✅ NORMALIZE: Clean the URL before storing
+            let urlToStore = newUrl;
+            if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
+                if (newUrl.toLowerCase().startsWith('www.')) {
+                    urlToStore = newUrl.substring(4);
+                }
+            }
+
             // Update URL
-            urls = urls.map(u => (u === oldUrl ? newUrl : u));
+            urls = urls.map(u => (u === oldUrl ? urlToStore : u));
             chrome.storage.local.set({ urls: urls }, function() {
                 allUrls = urls;
                 renderList(allUrls);
@@ -239,84 +397,3 @@ document.addEventListener("DOMContentLoaded", function () {
         return urlRegex.test(string) || domainRegex.test(cleanUrl);
     }
 });
-
-
-// Improved Add URL functionality with better UX
-function addURL() {
-    const newUrl = searchInput.value.trim();
-    
-    if (!newUrl) {
-        // Focus on search input and show helpful guidance
-        searchInput.focus();
-        searchInput.placeholder = "Type a website to block (e.g. youtube.com)";
-        searchInput.style.borderColor = "#007bff";
-        searchInput.style.boxShadow = "0 0 0 3px rgba(0, 123, 255, 0.25)";
-        
-        // Reset styling after 3 seconds
-        setTimeout(() => {
-            searchInput.placeholder = "Search Website";
-            searchInput.style.borderColor = "#ddd";
-            searchInput.style.boxShadow = "none";
-        }, 3000);
-        return;
-    }
-
-    // Basic URL validation
-    if (!isValidUrl(newUrl)) {
-        searchInput.style.borderColor = "#dc3545";
-        searchInput.style.boxShadow = "0 0 0 3px rgba(220, 53, 69, 0.25)";
-        alert("Please enter a valid URL or domain name\n\nExamples:\n• youtube.com\n• facebook.com\n• https://twitter.com");
-        searchInput.focus();
-        searchInput.select(); // Select all text for easy editing
-        
-        // Reset error styling after 3 seconds
-        setTimeout(() => {
-            searchInput.style.borderColor = "#ddd";
-            searchInput.style.boxShadow = "none";
-        }, 3000);
-        return;
-    }
-
-    chrome.storage.local.get({ urls: [] }, function (data) {
-        const urls = data.urls;
-        
-        // Check if URL already exists (compare by hostname)
-        const newHostname = extractHostname(newUrl);
-        const existingHostnames = urls.map(url => extractHostname(url));
-        
-        if (existingHostnames.includes(newHostname)) {
-            searchInput.style.borderColor = "#ffc107";
-            searchInput.style.boxShadow = "0 0 0 3px rgba(255, 193, 7, 0.25)";
-            alert("This website is already in your blocked list");
-            searchInput.focus();
-            searchInput.select();
-            
-            // Reset warning styling
-            setTimeout(() => {
-                searchInput.style.borderColor = "#ddd";
-                searchInput.style.boxShadow = "none";
-            }, 3000);
-            return;
-        }
-
-        // Add new URL with success feedback
-        urls.push(newUrl);
-        chrome.storage.local.set({ urls: urls }, function() {
-            allUrls = urls;
-            renderList(allUrls);
-            
-            // Success feedback
-            searchInput.value = ""; // Clear input
-            searchInput.placeholder = "✓ Website added successfully!";
-            searchInput.style.borderColor = "#28a745";
-            searchInput.style.boxShadow = "0 0 0 3px rgba(40, 167, 69, 0.25)";
-            
-            // Reset to normal after 2 seconds
-            setTimeout(() => {
-                searchInput.placeholder = "Search Website";
-                searchInput.style.borderColor = "#ddd";
-                searchInput.style.boxShadow = "none";
-            }, 2000);
-        });
-    });
-}
