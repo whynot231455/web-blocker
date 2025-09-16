@@ -135,8 +135,13 @@ h1 {
     background: transparent;
     font-family: 'bitFont', sans-serif;
     font-size: 11px;
-    color: #9D9D9D;
+    color: #666;
     width: 100%;
+    transition: all 0.3s ease; /* Smooth transitions */
+}
+
+#searchInput:focus {
+    outline: none;
 }
 
 #searchInput::placeholder {
@@ -145,7 +150,7 @@ h1 {
 }
 
 .add-btn {
-    background: #ffffff;
+    background: #e6e6e6;
     border: none;
     width: 40px;
     height: 40px;
@@ -153,7 +158,9 @@ h1 {
     font-size: 20px;
     font-weight: bold;
     cursor: pointer;
+    color: #666;
     transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -162,6 +169,13 @@ h1 {
 .add-btn:hover {
     background: #ddd;
     color: #333;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.add-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Fixed URL List */

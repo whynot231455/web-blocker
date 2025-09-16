@@ -54,7 +54,6 @@ body {
     flex-direction: column;
     margin-top:20px;
     width: 100%;
-    overflow-y: auto;
     padding-left: 10px;
 }
 
@@ -76,7 +75,7 @@ body {
 }
 
 .add_button{
-    background-color:#FF3232;
+    background-color:#FF4141;
     color:white;
     width:200px;
     height:50px;
@@ -328,4 +327,78 @@ body {
 .reload_button:active {
     transform: translateY(-2px);
     box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.edit-url-button {
+    background-color: #FF4141; /* Your specified red color */
+    color: white; /* White text */
+    border: 4px solid #FF4141; /* Same red border */
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 10px;
+    font-family: 'bitFont', sans-serif;
+    cursor: pointer;
+    transition: transform 0.1s ease, background-color 0.1s ease, color 0.1s ease, box-shadow 0.1s ease;
+    margin-top: 15px; /* Space above the button */
+    margin-bottom: 15px; /* Extra space for lift */
+}
+
+.edit-url-button:hover {
+    background-color: #E63939; /* Slightly darker red on hover */
+    color: white;
+    border: 4px solid #E63939; /* Matching darker border */
+    /* Lift button up and add shadow underneath */
+    transform: translateY(-6px);
+    box-shadow: 0 6px 0 rgba(0, 0, 0, 1); /* Shadow using your red color */
+}
+
+.edit-url-button:active {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); /* Lighter shadow when pressed */
+}
+
+/* Internal page message styling */
+.internal-page-message {
+    text-align: center;
+    padding: 20px 20px;
+    background: #fff;
+    border-radius: 8px;
+    font-family: 'bitFont', sans-serif;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.internal-page-message .message-icon {
+    font-size: 40px;
+    margin-bottom: 15px;
+}
+
+.internal-page-message h3 {
+    font-size: 16px;
+    color: #dc3545;
+    margin: 10px 0 15px 0;
+    line-height: 1.4;
+}
+
+
+.internal-page-message p {
+    font-size: 11px;
+    color: #6c757d;
+    margin: 8px 0;
+    line-height: 1.4;
+    max-width: 250px;
+}
+
+
+.internal-page-message .message-hint {
+    font-style: italic;
+    color: #495057;
+    margin-top: 15px;
+}
+
+.internal-page-message strong {
+    color: #343a40;
 }

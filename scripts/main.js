@@ -239,3 +239,84 @@ document.addEventListener("DOMContentLoaded", function () {
         return urlRegex.test(string) || domainRegex.test(cleanUrl);
     }
 });
+
+
+// Improved Add URL functionality with better UX
+function addURL() {
+    const newUrl = searchInput.value.trim();
+    
+    if (!newUrl) {
+        // Focus on search input and show helpful guidance
+        searchInput.focus();
+        searchInput.placeholder = "Type a website to block (e.g. youtube.com)";
+        searchInput.style.borderColor = "#007bff";
+        searchInput.style.boxShadow = "0 0 0 3px rgba(0, 123, 255, 0.25)";
+        
+        // Reset styling after 3 seconds
+        setTimeout(() => {
+            searchInput.placeholder = "Search Website";
+            searchInput.style.borderColor = "#ddd";
+            searchInput.style.boxShadow = "none";
+        }, 3000);
+        return;
+    }
+
+    // Basic URL validation
+    if (!isValidUrl(newUrl)) {
+        searchInput.style.borderColor = "#dc3545";
+        searchInput.style.boxShadow = "0 0 0 3px rgba(220, 53, 69, 0.25)";
+        alert("Please enter a valid URL or domain name\n\nExamples:\n• youtube.com\n• facebook.com\n• https://twitter.com");
+        searchInput.focus();
+        searchInput.select(); // Select all text for easy editing
+        
+        // Reset error styling after 3 seconds
+        setTimeout(() => {
+            searchInput.style.borderColor = "#ddd";
+            searchInput.style.boxShadow = "none";
+        }, 3000);
+        return;
+    }
+
+    chrome.storage.local.get({ urls: [] }, function (data) {
+        const urls = data.urls;
+        
+        // Check if URL already exists (compare by hostname)
+        const newHostname = extractHostname(newUrl);
+        const existingHostnames = urls.map(url => extractHostname(url));
+        
+        if (existingHostnames.includes(newHostname)) {
+            searchInput.style.borderColor = "#ffc107";
+            searchInput.style.boxShadow = "0 0 0 3px rgba(255, 193, 7, 0.25)";
+            alert("This website is already in your blocked list");
+            searchInput.focus();
+            searchInput.select();
+            
+            // Reset warning styling
+            setTimeout(() => {
+                searchInput.style.borderColor = "#ddd";
+                searchInput.style.boxShadow = "none";
+            }, 3000);
+            return;
+        }
+
+        // Add new URL with success feedback
+        urls.push(newUrl);
+        chrome.storage.local.set({ urls: urls }, function() {
+            allUrls = urls;
+            renderList(allUrls);
+            
+            // Success feedback
+            searchInput.value = ""; // Clear input
+            searchInput.placeholder = "✓ Website added successfully!";
+            searchInput.style.borderColor = "#28a745";
+            searchInput.style.boxShadow = "0 0 0 3px rgba(40, 167, 69, 0.25)";
+            
+            // Reset to normal after 2 seconds
+            setTimeout(() => {
+                searchInput.placeholder = "Search Website";
+                searchInput.style.borderColor = "#ddd";
+                searchInput.style.boxShadow = "none";
+            }, 2000);
+        });
+    });
+}
