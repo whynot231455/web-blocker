@@ -83,24 +83,35 @@
                 font-family: 'Press Start 2P', monospace, sans-serif !important;
             }
             
-            .ctrl-blck-button {
-                font-family: 'Press Start 2P', monospace, sans-serif !important;
-                font-size: 12px !important;
-                letter-spacing: 1px !important;
-                background-color: white !important;
-                color: #ff4141 !important;
-                border: none !important;
-                padding: 10px 20px !important;
-                margin-top: 20px !important;
-                cursor: pointer !important;
-                border-radius: 5px !important;
-                transition: all 0.2s ease !important;
-            }
-            
-            .ctrl-blck-button:hover {
-                background-color: #f0f0f0 !important;
-                transform: translateY(-1px) !important;
-            }
+.ctrl-blck-button {
+    background-color: white !important;
+    color: black !important;
+    border: 4px solid black !important;
+    border-radius: 15px !important;
+    padding: 20px 30px !important;
+    font-size: 15px !important;
+    font-family: 'Press Start 2P', monospace, sans-serif !important;
+    letter-spacing: 1px !important;
+    cursor: pointer !important;
+    transition: transform 0.1s ease, background-color 0.1s ease, color 0.1s ease, box-shadow 0.1s ease !important;
+    margin-top: 24px !important; 
+    margin-bottom: 24px !important; 
+}
+
+.ctrl-blck-button:hover {
+    background-color: white !important;
+    color: black !important;
+    border: 4px solid black !important;
+    transform: translateY(-6px) !important;
+    box-shadow: 0 6px 0 rgba(0, 0, 0, 1) !important;
+}
+
+.ctrl-blck-button:active {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3) !important;
+}
+
+
         `;
 
         // Rebuild document structure
