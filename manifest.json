@@ -29,5 +29,18 @@
   },
   "background": {
     "service_worker": "background.js"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-blocker.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["fonts/PressStart2P-Regular.ttf"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

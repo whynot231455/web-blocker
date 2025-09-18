@@ -118,11 +118,98 @@ h1 {
     border-radius: 12px;
     padding: 0.75rem 0.85rem;
     gap: 10px;
-    flex: 1; /* ✅ Take up remaining space */
-    max-width: none; /* ✅ Remove max-width restriction */
-    min-width: 400px; /* ✅ Increased minimum width */
     transition: all 0.3s ease;
+    width: 100%;
 }
+
+.search-container-wrapper {
+    position: relative;
+    flex: 1;
+    max-width: none;
+    min-width: 400px;
+}
+
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 2px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.suggestions-dropdown.show {
+    display: block;
+}
+
+.suggestion-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s ease;
+    font-family: 'bitFont', sans-serif;
+    font-size: 11px;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover,
+.suggestion-item.selected {
+    background-color: #f8f9fa;
+}
+
+.suggestion-item .favicon {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+}
+
+.suggestion-item .domain {
+    flex: 1;
+    color: #333;
+}
+
+.suggestion-item .add-icon {
+    color: #28a745;
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+.suggestion-item:hover .add-icon {
+    opacity: 1;
+}
+
+/* Loading state */
+.suggestion-loading {
+    padding: 12px 16px;
+    text-align: center;
+    color: #666;
+    font-size: 10px;
+    font-family: 'bitFont', sans-serif;
+}
+
+/* No results state */
+.suggestion-no-results {
+    padding: 12px 16px;
+    text-align: center;
+    color: #999;
+    font-size: 10px;
+    font-family: 'bitFont', sans-serif;
+    font-style: italic;
+}
+
 
 .search-icon {
     width: 25px;
@@ -253,4 +340,56 @@ h1 {
 #urlList li i.delete {
     margin-left: 10px;
     color: red;
+}
+
+/* Settings Section */
+.settings-section {
+    margin-top: 20px;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 8px;
+}
+
+.settings-section h3 {
+    font-size: 14px;
+    margin-bottom: 15px;
+    color: #333;
+    font-family: 'bitFont', sans-serif;
+}
+
+.setting-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.setting-item label {
+    font-size: 11px;
+    font-family: 'bitFont', sans-serif;
+    color: #666;
+    min-width: 100px;
+}
+
+.duration-dropdown {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-family: 'bitFont', sans-serif;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 150px;
+}
+
+.duration-dropdown:hover {
+    border-color: #FF4141;
+}
+
+.duration-dropdown:focus {
+    outline: none;
+    border-color: #FF4141;
+    box-shadow: 0 0 0 3px rgba(255, 65, 65, 0.1);
 }

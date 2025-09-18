@@ -20,11 +20,33 @@
         <div class="url-section">
             <div class="url-header">
                 <h2>URL LIST:</h2>
-                <div class="search-container">
-                    <img src="/icons/search-icon.svg" class="search-icon" alt="Search">
-                    <input type="text" id="searchInput" placeholder="Search / Add Website (Press Enter to add)">
+                <div class="search-container-wrapper">
+                    <div class="search-container">
+                        <img src="/icons/search-icon.svg" class="search-icon" alt="Search">
+                        <input type="text" id="searchInput" placeholder="Search / Add Website (Press Enter to add)">
+                    </div>
+                    <div id="suggestions" class="suggestions-dropdown"></div>
                 </div>
+            </div>
         </div>
+
+    <div class="settings-section">
+        <h3>Settings:</h3> 
+    <div class="setting-item">
+        <label for="countdownDuration">Countdown Duration:</label>
+        <select id="countdownDuration" class="duration-dropdown">
+            <option value="3">3 seconds</option>
+            <option value="5" selected>5 seconds (default)</option>
+            <option value="10">10 seconds</option>
+            <option value="15">15 seconds</option>
+            <option value="30">30 seconds</option>
+            <option value="60">1 minute</option>
+            <option value="120">2 minutes</option>
+            <option value="300">5 minutes</option>
+        </select>
+    </div>
+    </div>
+
 
         <ul id="urlList">
         </ul>
