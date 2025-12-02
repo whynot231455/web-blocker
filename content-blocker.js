@@ -19,16 +19,27 @@
     const normalizedCurrentHostname = normalizeHostname(currentHostname);
 
     // Check if current site should be blocked
-    chrome.storage.local.get({ urls: [], countdownDuration: 5 }, function(data) {
+    // FIXED: Now checking both 'urls' and 'hiddenWebsites' arrays
+    chrome.storage.local.get({ 
+        urls: [], 
+        hiddenUrls: [],  // Add hidden websites
+        countdownDuration: 5 
+    }, function(data) {
         const blockedUrls = data.urls || [];
+        const hiddenUrls = data.hiddenUrls || [];  // Get hidden websites
         const countdownDuration = data.countdownDuration || 5;
         
+        // Combine both arrays for blocking check
+        const allBlockedUrls = [...blockedUrls, ...hiddenUrls];
+        
         console.log('🔍 Content Script - Current hostname:', normalizedCurrentHostname);
-        console.log('🔍 Content Script - Blocked URLs:', blockedUrls);
+        console.log('🔍 Content Script - Regular blocked URLs:', blockedUrls);
+        console.log('🔍 Content Script - Hidden blocked URLs:', hiddenUrls);
+        console.log('🔍 Content Script - All blocked URLs:', allBlockedUrls);
         console.log('⏱️ Content Script - Countdown duration:', countdownDuration, 'seconds');
 
         // Check if any blocked URL matches current hostname
-        const isBlocked = blockedUrls.some(url => {
+        const isBlocked = allBlockedUrls.some(url => {  // Use combined array
             try {
                 let blockedHostname;
                 if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -110,8 +121,6 @@
     transform: translateY(-2px) !important;
     box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3) !important;
 }
-
-
         `;
 
         // Rebuild document structure

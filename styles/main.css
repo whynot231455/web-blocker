@@ -109,7 +109,7 @@ h1 {
     margin: 0;
 }
 
-/* ✅ EXTENDED Search Container - No Add Button */
+/* Search Container */
 .search-container {
     display: flex;
     align-items: center;
@@ -210,7 +210,6 @@ h1 {
     font-style: italic;
 }
 
-
 .search-icon {
     width: 25px;
     height: 25px;
@@ -235,8 +234,6 @@ h1 {
     color: #9D9D9D;
     font-size: 11px;
 }
-
-/* ❌ REMOVED: .add-btn styles */
 
 /* Fixed URL List */
 #urlList {
@@ -342,6 +339,226 @@ h1 {
     color: red;
 }
 
+/* HIDDEN WEBSITES SECTION */
+.hidden-section {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+    background: white;
+    padding: 20px;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+}
+
+.hidden-header {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    margin-bottom: 15px;
+}
+
+.hidden-header h2 {
+    font-size: 16px;
+    color: black;
+    margin: 0;
+    font-family: 'bitFont', sans-serif;
+}
+
+.hidden-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+    justify-content: space-between;
+}
+
+.toggle-hidden-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #666;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 10px;
+    font-family: 'bitFont', sans-serif;
+    transition: all 0.3s ease;
+}
+
+.toggle-hidden-btn:hover {
+    background: #555;
+    transform: translateY(-1px);
+}
+
+.toggle-hidden-btn:active {
+    transform: translateY(0);
+}
+
+.toggle-text {
+    font-family: 'bitFont', sans-serif;
+    font-size: 10px;
+}
+
+.eye-icon {
+    width: 16px;
+    height: 16px;
+    filter: invert(1);
+    opacity: 0.8;
+}
+
+/* Hidden URL List */
+.hidden-list {
+    list-style: none;
+    padding: 0;
+    margin: 15px 0 0 0;
+    background: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: none;
+}
+
+.hidden-list:empty {
+    display: none;
+}
+
+.hidden-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    margin: 0;
+    background: #ffffff;
+    border-bottom: 1px solid #eee;
+    font-size: 11px;
+    color: #666;
+    font-family: 'bitFont', sans-serif;
+    transition: background-color 0.2s ease;
+    box-shadow: none;
+}
+
+.hidden-list li:last-child {
+    border-bottom: none;
+    border-radius: 0 0 6px 6px;
+}
+
+.hidden-list li:first-child {
+    border-radius: 6px 6px 0 0;
+}
+
+.hidden-list li:only-child {
+    border-radius: 6px;
+}
+
+.hidden-list li:hover {
+    background: #f8f9fa;
+}
+
+.hidden-list .url-text {
+    flex: 1;
+    font-style: italic;
+    color: #555;
+    font-size: 11px;
+    font-family: 'bitFont', sans-serif;
+}
+
+.hidden-list .url-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Unhide Button */
+.unhide-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 9px;
+    font-family: 'bitFont', sans-serif;
+    transition: all 0.2s ease;
+}
+
+.unhide-btn:hover {
+    background: #218838;
+    transform: translateY(-1px);
+}
+
+.unhide-btn:active {
+    transform: translateY(0);
+}
+
+/* Hidden Delete Button */
+.hidden-delete-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 9px;
+    font-family: 'bitFont', sans-serif;
+    transition: all 0.2s ease;
+}
+
+.hidden-delete-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+.hidden-delete-btn:active {
+    transform: translateY(0);
+}
+
+/* Hide Button for Main URL List */
+.url-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.hide-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 9px;
+    font-family: 'bitFont', sans-serif;
+    transition: all 0.2s ease;
+}
+
+.hide-btn:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+.hide-btn:active {
+    transform: translateY(0);
+}
+
+/* Hidden Section Empty State */
+.hidden-empty-state {
+    text-align: center;
+    color: #999;
+    font-size: 11px;
+    padding: 30px 20px;
+    font-style: italic;
+    font-family: 'bitFont', sans-serif;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 2px dashed #ddd;
+    margin-top: 15px;
+}
+
+
 /* Settings Section */
 .settings-section {
     margin-top: 20px;
@@ -392,4 +609,78 @@ h1 {
     outline: none;
     border-color: #FF4141;
     box-shadow: 0 0 0 3px rgba(255, 65, 65, 0.1);
+}
+
+/* Responsive Design for Hidden Section */
+@media (max-width: 768px) {
+    .hidden-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .hidden-controls {
+        width: 100%;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .hidden-search-wrapper {
+        max-width: 100%;
+    }
+
+    .hidden-list li {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .hidden-list .url-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
+
+
+.password-overlay {
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 20px;
+    border-radius: 6px;
+    margin-top: 15px;
+    max-width: 600px;
+    width: 100%;
+}
+
+.password-overlay label {
+    font-family: 'bitFont', monospace, sans-serif;
+    font-size: 12px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.password-overlay input {
+    width: 100%;
+    padding: 8px 10px;
+    font-family: 'bitFont', monospace, sans-serif;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    min-width: 400px;
+    font-size: 18px;
+}
+
+.password-overlay button {
+    padding: 8px 16px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'bitFont', monospace, sans-serif;
+}
+
+.password-overlay button:hover {
+    background-color: #5a6268;
 }

@@ -10,46 +10,70 @@
     <div class="container">
         <header>
             <div class="header-left">
-                <img src="/icons/logopic1-32.png" class="ctrl-logo" alt="CTRL">
+                <img src="/icons/logopic1-32.png" class="ctrl-logo" alt="CTRL + BLCK Logo">
                 <h1>CTRL + BLCK</h1>
             </div>
         </header>
         
         <p class="tagline">block all of your distractions instantly</p>
 
-        <div class="url-section">
-            <div class="url-header">
-                <h2>URL LIST:</h2>
-                <div class="search-container-wrapper">
-                    <div class="search-container">
-                        <img src="/icons/search-icon.svg" class="search-icon" alt="Search">
-                        <input type="text" id="searchInput" placeholder="Search / Add Website (Press Enter to add)">
-                    </div>
-                    <div id="suggestions" class="suggestions-dropdown"></div>
+        <main>
+             <section class="settings-section">
+                <h3>⚙️ Settings</h3>
+                <div class="setting-item">
+                    <label for="countdownDuration">Countdown Duration:</label>
+                    <select id="countdownDuration" class="duration-dropdown" aria-describedby="duration-help">
+                        <option value="3">3 seconds</option>
+                        <option value="5" selected>5 seconds (default)</option>
+                        <option value="10">10 seconds</option>
+                    </select>
                 </div>
-            </div>
+            </section>
+
+            <section class="url-section">
+                <div class="url-header">
+                    <h2>URL LIST:</h2>
+                    <div class="search-container-wrapper">
+                        <div class="search-container">
+                            <img src="/icons/search-icon.svg" class="search-icon" alt="Search">
+                            <input type="text" id="searchInput" placeholder="Search / Add Website (Press Enter to add)">
+                        </div>
+                        <div id="suggestions" class="suggestions-dropdown"></div>
+                    </div>
+                </div>
+
+                <ul id="urlList" aria-label="Blocked websites list">
+                </ul>
+            </section>
+<section class="hidden-section">
+    <div class="hidden-header">
+        <h2>🔒 Hidden Websites</h2>
+        <div class="hidden-controls">
+            <button id="toggleHiddenBtn" class="toggle-hidden-btn" aria-expanded="false">
+                <span class="toggle-text">Show Hidden</span>
+                <img src="/icons/eye-icon.svg" class="eye-icon" alt="Toggle visibility">
+            </button>
         </div>
-
-    <div class="settings-section">
-        <h3>Settings:</h3> 
-    <div class="setting-item">
-        <label for="countdownDuration">Countdown Duration:</label>
-        <select id="countdownDuration" class="duration-dropdown">
-            <option value="3">3 seconds</option>
-            <option value="5" selected>5 seconds (default)</option>
-            <option value="10">10 seconds</option>
-            <option value="15">15 seconds</option>
-            <option value="30">30 seconds</option>
-            <option value="60">1 minute</option>
-            <option value="120">2 minutes</option>
-            <option value="300">5 minutes</option>
-        </select>
-    </div>
     </div>
 
+    <!-- Password Overlay -->
+    <div id="hiddenPasswordOverlay" class="password-overlay" style="display: none;">
+        <label for="hiddenPasswordInput">Enter Password to View Hidden Websites:</label>
+        <input id="hiddenPasswordInput" type="password" placeholder="Password" />
+        <button id="hiddenPasswordSubmit">Submit</button>
+        <p id="hiddenPasswordError" class="password-error" style="display:none; color:red; font-size:12px;"></p>
+    </div>
 
-        <ul id="urlList">
-        </ul>
+    <ul class="hidden-list" style="display: none;">
+        <!-- Hidden URLs populated by JS -->
+    </ul>
+
+    <div class="hidden-empty-state" style="display: none;">
+        <p>No hidden websites yet. Add some to keep them private!</p>
+    </div>
+</section>
+
+        </main>
     </div>
 
     <script src="/scripts/main.js"></script>

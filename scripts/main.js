@@ -2,10 +2,47 @@ document.addEventListener("DOMContentLoaded", function () {
     const urlList = document.getElementById("urlList");
     const searchInput = document.getElementById("searchInput");
     const suggestionsDropdown = document.getElementById("suggestions");
-   
+    const passwordOverlay = document.getElementById('hiddenPasswordOverlay');
+    const passwordInput = document.getElementById('hiddenPasswordInput');
+    const passwordSubmit = document.getElementById('hiddenPasswordSubmit');
+    const passwordError = document.getElementById('hiddenPasswordError');
+    const hiddenList = document.querySelector('.hidden-list');
+
+    let hasHiddenAccess = false;
+    const hiddenSection = document.querySelector('.hidden-section');
+
+    const PASSWORD = 'yourPassword';
+
     let allUrls = []; // Store all URLs for filtering
+    let hiddenUrls = []; // Store hidden URLs separately
     let selectedSuggestionIndex = -1;
     let currentSuggestions = [];
+    let hiddenSectionVisible = false;
+    passwordSubmit.addEventListener('click', function () {
+        if (passwordInput.value === PASSWORD) {
+            hasHiddenAccess = true;
+            passwordOverlay.style.display = 'none';
+            hiddenSectionVisible = true;
+            hiddenList.style.display = 'block';
+            document.querySelector('.toggle-text').textContent = 'Hide Hidden';
+            passwordError.style.display = 'none';
+        } else {
+            passwordError.textContent = 'Incorrect password. Please try again.';
+            passwordError.style.display = 'block';
+            passwordInput.value = '';
+            passwordInput.focus();
+        }
+    });
+
+
+
+
+    // Optionally, allow pressing enter to submit
+    passwordInput.addEventListener('keyup', function (e) {
+        if (e.key === 'Enter') {
+            passwordSubmit.click();
+        }
+    });
 
     // Popular websites for suggestions
     const popularSites = [
@@ -44,27 +81,27 @@ document.addEventListener("DOMContentLoaded", function () {
     // Initialize countdown duration setting
     function initializeCountdownSetting() {
         const durationDropdown = document.getElementById('countdownDuration');
-        
+
         if (!durationDropdown) return;
-        
+
         // Load saved duration
-        chrome.storage.local.get({ countdownDuration: 5 }, function(data) {
+        chrome.storage.local.get({ countdownDuration: 5 }, function (data) {
             durationDropdown.value = data.countdownDuration;
         });
-        
+
         // Save when changed
-        durationDropdown.addEventListener('change', function() {
+        durationDropdown.addEventListener('change', function () {
             const duration = parseInt(this.value);
-            chrome.storage.local.set({ countdownDuration: duration }, function() {
+            chrome.storage.local.set({ countdownDuration: duration }, function () {
                 console.log('✅ Countdown duration saved:', duration, 'seconds');
-                
+
                 // Visual feedback
                 const originalBg = durationDropdown.style.backgroundColor;
                 const originalBorder = durationDropdown.style.borderColor;
-                
+
                 durationDropdown.style.backgroundColor = '#d4edda';
                 durationDropdown.style.borderColor = '#28a745';
-                
+
                 setTimeout(() => {
                     durationDropdown.style.backgroundColor = originalBg;
                     durationDropdown.style.borderColor = originalBorder || '#ddd';
@@ -73,19 +110,202 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    function initializeHiddenWebsites() {
+        const toggleBtn = document.getElementById('toggleHiddenBtn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (!hiddenSectionVisible) {
+                    // User clicked "Show Hidden", so always show password prompt
+                    passwordOverlay.style.display = 'block';
+                    hiddenList.style.display = 'none';
+                    hasHiddenAccess = false;  // Reset access
+                    passwordInput.value = ''; // Reset text input every time
+                    passwordError.style.display = 'none'; // Hide previous errors
+                    passwordInput.focus(); // Focus the input for better UX
+                    return;
+                }
+
+                // Hiding the section, reset state
+                hiddenSectionVisible = false;
+                const toggleText = document.querySelector('.toggle-text');
+                hiddenList.style.display = 'none';
+                toggleText.textContent = 'Show Hidden';
+            });
+        }
+    }
+
+    // Add to hidden list function
+    function addToHiddenList(url) {
+        const normalizedUrl = extractHostname(url);
+
+        hiddenUrls.push(url);
+
+        // Remove from main list if it exists
+        const mainIndex = allUrls.findIndex(u => extractHostname(u) === normalizedUrl);
+        if (mainIndex > -1) {
+            allUrls.splice(mainIndex, 1);
+            renderList(allUrls);
+        }
+
+        updateHiddenUrlList();
+        saveToStorage();
+        console.log('✅ Added to hidden list:', url);
+    }
+
+    function updateHiddenUrlList() {
+        const hiddenList = document.querySelector('.hidden-list');
+        const hiddenLoading = document.getElementById('hiddenLoading');
+
+        if (!hasHiddenAccess) {
+            hiddenList.style.display = 'none';
+            if (hiddenLoading) hiddenLoading.style.display = 'none';
+            return;
+        }
+
+        if (hiddenLoading) hiddenLoading.style.display = 'block';
+        hiddenList.style.display = 'none';
+
+        setTimeout(() => {
+            hiddenList.innerHTML = '';
+
+            if (hiddenUrls.length === 0) {
+                hiddenList.style.display = 'none';
+                if (hiddenLoading) hiddenLoading.style.display = 'none';
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+            hiddenUrls.forEach((url, index) => {
+                const listItem = document.createElement('li');
+                const hostname = extractHostname(url);
+
+                // Create Icon
+                const icon = document.createElement('img');
+                icon.src = getFavicon(url);
+                icon.className = 'icon';
+                icon.alt = '';
+                icon.style.width = '20px';
+                icon.style.height = '20px';
+                icon.style.marginRight = '10px';
+                icon.onerror = function () {
+                    this.src = '/icons/default-site-icon.svg';
+                };
+
+                // Create URL text
+                const urlText = document.createElement('span');
+                urlText.className = 'url-text';
+                urlText.textContent = hostname;
+
+                // Create Actions container
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'url-actions';
+
+                // Create Unhide button
+                const unhideBtn = document.createElement('button');
+                unhideBtn.className = 'unhide-btn';
+                unhideBtn.textContent = 'Unhide';
+                unhideBtn.addEventListener('click', () => {
+                    unhideWebsite(index);
+                });
+
+                // Create Delete icon
+                const deleteIcon = document.createElement('img');
+                deleteIcon.src = '/icons/delete-icon.svg';
+                deleteIcon.className = 'delete-icon';
+                deleteIcon.title = 'Delete';
+                deleteIcon.style.width = '20px';
+                deleteIcon.style.height = '20px';
+                deleteIcon.style.cursor = 'pointer';
+                deleteIcon.addEventListener('click', () => {
+                    deleteHiddenWebsite(index);
+                });
+
+                actionsDiv.appendChild(unhideBtn);
+                actionsDiv.appendChild(deleteIcon);
+
+                listItem.appendChild(icon);
+                listItem.appendChild(urlText);
+                listItem.appendChild(actionsDiv);
+
+                fragment.appendChild(listItem);
+            });
+            hiddenList.appendChild(fragment);
+
+            if (hiddenLoading) hiddenLoading.style.display = 'none';
+            hiddenList.style.display = hiddenSectionVisible ? 'block' : 'none';
+        }, 50); // makes loading visible for at least 50ms
+    }
+
+    window.unhideWebsite = function (index) {
+        const url = hiddenUrls[index];
+        if (!url) return;
+        hiddenUrls.splice(index, 1);
+
+        const normalizedUrl = extractHostname(url);
+        if (!allUrls.some(u => extractHostname(u) === normalizedUrl)) {
+            allUrls.push(url);
+            renderList(allUrls);
+        }
+        updateHiddenUrlList();
+        saveToStorage();
+    };
+
+
+    // Delete hidden website permanently
+    window.deleteHiddenWebsite = function (index) {
+        if (confirm('Are you sure you want to permanently delete this hidden website?')) {
+            const url = hiddenUrls[index];
+            hiddenUrls.splice(index, 1);
+            updateHiddenUrlList();
+            saveToStorage();
+            console.log('✅ Deleted hidden website:', url);
+        }
+    };
+
+    // Hide website (move to hidden list)
+    window.hideWebsite = function (index) {
+        const url = allUrls[index];
+        addToHiddenList(url);
+    };
+
+    // Enhanced storage functions to include hidden websites
+    function saveToStorage() {
+        chrome.storage.local.set({
+            urls: allUrls,
+            hiddenUrls: hiddenUrls
+        }, function () {
+            console.log('✅ URLs and hidden URLs saved to storage');
+        });
+    }
+
+    // Enhanced load function
+    function loadURLs() {
+        chrome.storage.local.get({ urls: [], hiddenUrls: [] }, function (data) {
+            allUrls = data.urls || [];
+            hiddenUrls = data.hiddenUrls || [];
+            renderList(allUrls);
+            updateHiddenUrlList();
+        });
+    }
+
     // Fetch URLs from chrome.storage and initialize
     loadURLs();
-    
-    // Initialize settings
+
+    // Initialize settings and hidden websites
     initializeCountdownSetting();
+    initializeHiddenWebsites();
 
     // ✅ Function to clean up existing duplicates
     function removeDuplicateHostnames() {
-        chrome.storage.local.get({ urls: [] }, function (data) {
-            const urls = data.urls;
+        chrome.storage.local.get({ urls: [], hiddenUrls: [] }, function (data) {
+            const urls = data.urls || [];
+            const hiddenUrls_data = data.hiddenUrls || [];
             const seenHostnames = new Set();
             const cleanedUrls = [];
-            
+            const cleanedHiddenUrls = [];
+
+            // Clean main URLs
             urls.forEach(url => {
                 const hostname = extractHostname(url);
                 if (!seenHostnames.has(hostname)) {
@@ -97,12 +317,30 @@ document.addEventListener("DOMContentLoaded", function () {
                     cleanedUrls.push(cleanUrl);
                 }
             });
-            
-            if (cleanedUrls.length !== urls.length) {
-                chrome.storage.local.set({ urls: cleanedUrls }, function() {
+
+            // Clean hidden URLs
+            hiddenUrls_data.forEach(url => {
+                const hostname = extractHostname(url);
+                if (!seenHostnames.has(hostname)) {
+                    seenHostnames.add(hostname);
+                    let cleanUrl = url;
+                    if (!url.startsWith('http://') && !url.startsWith('https://') && url.toLowerCase().startsWith('www.')) {
+                        cleanUrl = url.substring(4);
+                    }
+                    cleanedHiddenUrls.push(cleanUrl);
+                }
+            });
+
+            if (cleanedUrls.length !== urls.length || cleanedHiddenUrls.length !== hiddenUrls_data.length) {
+                chrome.storage.local.set({
+                    urls: cleanedUrls,
+                    hiddenUrls: cleanedHiddenUrls
+                }, function () {
                     allUrls = cleanedUrls;
+                    hiddenUrls = cleanedHiddenUrls;
                     renderList(allUrls);
-                    console.log(`Removed ${urls.length - cleanedUrls.length} duplicate hostnames`);
+                    updateHiddenUrlList();
+                    console.log(`Removed duplicates from main and hidden lists`);
                 });
             }
         });
@@ -111,29 +349,25 @@ document.addEventListener("DOMContentLoaded", function () {
     removeDuplicateHostnames();
 
     // Listen for storage changes
-    chrome.storage.onChanged.addListener(function(changes, namespace) {
-        if (namespace === 'local' && changes.urls) {
-            allUrls = changes.urls.newValue || [];
-            
-            if (searchInput.value.trim()) {
-                const filter = searchInput.value.toLowerCase();
-                const filteredURLs = allUrls.filter(url => {
-                    const hostname = extractHostname(url);
-                    return hostname.toLowerCase().includes(filter);
-                });
-                renderList(filteredURLs);
-            } else {
+    chrome.storage.onChanged.addListener(function (changes, namespace) {
+        if (namespace === 'local') {
+            if (changes.urls) {
+                allUrls = changes.urls.newValue || [];
                 renderList(allUrls);
+            }
+            if (changes.hiddenUrls) {
+                hiddenUrls = changes.hiddenUrls.newValue || [];
+                updateHiddenUrlList();
             }
         }
     });
 
-    window.addEventListener("focus", function() {
+    window.addEventListener("focus", function () {
         loadURLs();
     });
 
-    // ✅ NEW: Handle keyboard navigation in suggestions
-    searchInput.addEventListener("keydown", function(e) {
+    // ✅ Handle keyboard navigation in suggestions
+    searchInput.addEventListener("keydown", function (e) {
         if (currentSuggestions.length === 0) {
             if (e.key === "Enter") {
                 addURL();
@@ -166,27 +400,27 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    // ✅ NEW: Enhanced input handler with suggestions
+    // ✅ Enhanced input handler with suggestions
     searchInput.addEventListener("input", function () {
         const inputValue = searchInput.value.trim();
         const searchContainer = document.querySelector('.search-container');
-        
+
         // Reset selection
         selectedSuggestionIndex = -1;
-        
+
         // Reset to default state first
         if (searchContainer) {
             searchContainer.style.borderColor = "#ddd";
             searchContainer.style.boxShadow = "none";
         }
-        
+
         if (inputValue === "") {
             searchInput.placeholder = "Search / Add Website (Press Enter to add)";
             hideSuggestions();
         } else if (inputValue.length >= 2) {
             // Show suggestions for inputs of 2+ characters
             showSuggestions(inputValue);
-            
+
             // Real-time validation
             if (!isValidUrl(inputValue)) {
                 if (searchContainer) {
@@ -196,8 +430,9 @@ document.addEventListener("DOMContentLoaded", function () {
             } else {
                 const newHostname = extractHostname(inputValue);
                 const existingHostnames = allUrls.map(url => extractHostname(url));
-                
-                if (existingHostnames.includes(newHostname)) {
+                const hiddenHostnames = hiddenUrls.map(url => extractHostname(url));
+
+                if (existingHostnames.includes(newHostname) || hiddenHostnames.includes(newHostname)) {
                     if (searchContainer) {
                         searchContainer.style.borderColor = "#ffc107";
                         searchContainer.style.boxShadow = "0 0 0 2px rgba(255, 193, 7, 0.2)";
@@ -212,7 +447,7 @@ document.addEventListener("DOMContentLoaded", function () {
         } else {
             hideSuggestions();
         }
-        
+
         // Filter existing URLs
         const filter = inputValue.toLowerCase();
         const filteredURLs = allUrls.filter(url => {
@@ -222,17 +457,19 @@ document.addEventListener("DOMContentLoaded", function () {
         renderList(filteredURLs);
     });
 
-    // ✅ NEW: Show suggestions
+    // ✅ Show suggestions
     function showSuggestions(query) {
         if (!suggestionsDropdown) return;
-        
+
         const existingHostnames = allUrls.map(url => extractHostname(url));
-        
-        // Filter popular sites that match the query and aren't already blocked
+        const hiddenHostnames = hiddenUrls.map(url => extractHostname(url));
+        const allExistingHostnames = [...existingHostnames, ...hiddenHostnames];
+
+        // Filter popular sites that match the query and aren't already blocked or hidden
         const suggestions = popularSites.filter(site => {
-            const matches = site.domain.toLowerCase().includes(query.toLowerCase()) || 
-                          site.name.toLowerCase().includes(query.toLowerCase());
-            const notBlocked = !existingHostnames.includes(site.domain);
+            const matches = site.domain.toLowerCase().includes(query.toLowerCase()) ||
+                site.name.toLowerCase().includes(query.toLowerCase());
+            const notBlocked = !allExistingHostnames.includes(site.domain);
             return matches && notBlocked;
         }).slice(0, 5); // Show max 5 suggestions
 
@@ -246,33 +483,54 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    // ✅ NEW: Render suggestions
+    // ✅ Render suggestions
+    // ✅ Render suggestions
     function renderSuggestions(suggestions) {
         if (!suggestionsDropdown) return;
-        
-        suggestionsDropdown.innerHTML = suggestions.map((suggestion, index) => `
-            <div class="suggestion-item" data-index="${index}" data-domain="${suggestion.domain}">
-                <img class="favicon" src="https://www.google.com/s2/favicons?domain=${suggestion.domain}&sz=32" 
-                     onerror="this.src='/icons/default-site-icon.svg'" alt="${suggestion.name}">
-                <span class="domain">${suggestion.domain}</span>
-                <span class="add-icon">+</span>
-            </div>
-        `).join('');
 
-        // Add click listeners to suggestions
-        suggestionsDropdown.querySelectorAll('.suggestion-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const domain = item.getAttribute('data-domain');
-                const suggestion = suggestions.find(s => s.domain === domain);
+        suggestionsDropdown.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+
+        suggestions.forEach((suggestion, index) => {
+            const div = document.createElement('div');
+            div.className = 'suggestion-item';
+            div.setAttribute('data-index', index);
+            div.setAttribute('data-domain', suggestion.domain);
+
+            const img = document.createElement('img');
+            img.className = 'favicon';
+            img.src = `https://www.google.com/s2/favicons?domain=${suggestion.domain}&sz=32`;
+            img.alt = suggestion.name;
+            img.onerror = function () {
+                this.src = '/icons/default-site-icon.svg';
+            };
+
+            const domainSpan = document.createElement('span');
+            domainSpan.className = 'domain';
+            domainSpan.textContent = suggestion.domain;
+
+            const addIconSpan = document.createElement('span');
+            addIconSpan.className = 'add-icon';
+            addIconSpan.textContent = '+';
+
+            div.appendChild(img);
+            div.appendChild(domainSpan);
+            div.appendChild(addIconSpan);
+
+            div.addEventListener('click', () => {
                 selectSuggestion(suggestion);
             });
+
+            fragment.appendChild(div);
         });
+
+        suggestionsDropdown.appendChild(fragment);
     }
 
-    // ✅ NEW: Update suggestion selection (keyboard navigation)
+    // ✅ Update suggestion selection (keyboard navigation)
     function updateSuggestionSelection() {
         if (!suggestionsDropdown) return;
-        
+
         suggestionsDropdown.querySelectorAll('.suggestion-item').forEach((item, index) => {
             if (index === selectedSuggestionIndex) {
                 item.classList.add('selected');
@@ -282,14 +540,12 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // ✅ NEW: Select a suggestion
     function selectSuggestion(suggestion) {
         searchInput.value = suggestion.domain;
         hideSuggestions();
-        addURL(); // Automatically add the selected suggestion
+        addURL();
     }
 
-    // ✅ NEW: Hide suggestions
     function hideSuggestions() {
         if (suggestionsDropdown) {
             suggestionsDropdown.classList.remove('show');
@@ -299,25 +555,17 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Hide suggestions when clicking outside
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
         if (!e.target.closest('.search-container-wrapper')) {
             hideSuggestions();
         }
     });
 
-    // Load URLs from storage
-    function loadURLs() {
-        chrome.storage.local.get({ urls: [] }, function (data) {
-            allUrls = data.urls;
-            renderList(allUrls);
-        });
-    }
-
     // ✅ COMPLETE AND CORRECTED Add URL function with better UX
     function addURL() {
         const newUrl = searchInput.value.trim();
         const searchContainer = document.querySelector('.search-container');
-        
+
         if (!newUrl) {
             searchInput.focus();
             searchInput.placeholder = "Type a website to block (e.g. youtube.com)";
@@ -325,7 +573,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 searchContainer.style.borderColor = "#007bff";
                 searchContainer.style.boxShadow = "0 0 0 3px rgba(0, 123, 255, 0.25)";
             }
-            
+
             setTimeout(() => {
                 searchInput.placeholder = "Search / Add Website (Press Enter to add)";
                 if (searchContainer) {
@@ -344,82 +592,85 @@ document.addEventListener("DOMContentLoaded", function () {
             alert("Please enter a valid URL or domain name\n\nExamples:\n• youtube.com\n• facebook.com\n• https://twitter.com");
             searchInput.focus();
             searchInput.select();
-            
+
             setTimeout(() => {
                 searchInput.dispatchEvent(new Event('input'));
             }, 3000);
             return;
         }
 
-        chrome.storage.local.get({ urls: [] }, function (data) {
-            const urls = data.urls;
-            const newHostname = extractHostname(newUrl);
-            const existingHostnames = urls.map(url => extractHostname(url));
-            
-            if (existingHostnames.includes(newHostname)) {
-                if (searchContainer) {
-                    searchContainer.style.borderColor = "#ffc107";
-                    searchContainer.style.boxShadow = "0 0 0 3px rgba(255, 193, 7, 0.4)";
-                }
-                alert("This website is already in your blocked list");
-                searchInput.focus();
-                searchInput.select();
-                
-                setTimeout(() => {
-                    searchInput.dispatchEvent(new Event('input'));
-                }, 3000);
-                return;
-            }
+        const newHostname = extractHostname(newUrl);
+        const existingHostnames = allUrls.map(url => extractHostname(url));
+        const hiddenHostnames = hiddenUrls.map(url => extractHostname(url));
 
-            let urlToStore = newUrl;
-            if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
-                if (newUrl.toLowerCase().startsWith('www.')) {
-                    urlToStore = newUrl.substring(4);
-                }
+        if (existingHostnames.includes(newHostname)) {
+            if (searchContainer) {
+                searchContainer.style.borderColor = "#ffc107";
+                searchContainer.style.boxShadow = "0 0 0 3px rgba(255, 193, 7, 0.4)";
             }
+            alert("This website is already in your blocked list");
+            searchInput.focus();
+            searchInput.select();
+            return;
+        }
 
-            urls.push(urlToStore);
-            chrome.storage.local.set({ urls: urls }, function() {
-                allUrls = urls;
-                renderList(allUrls);
-                
-                // Success feedback
-                searchInput.value = "";
-                searchInput.placeholder = "✓ Website added successfully!";
-                if (searchContainer) {
-                    searchContainer.style.borderColor = "#28a745";
-                    searchContainer.style.boxShadow = "0 0 0 3px rgba(40, 167, 69, 0.4)";
-                }
-                
-                // Hide suggestions
-                hideSuggestions();
-                
-                setTimeout(() => {
-                    searchInput.placeholder = "Search / Add Website (Press Enter to add)";
-                    if (searchContainer) {
-                        searchContainer.style.borderColor = "#ddd";
-                        searchContainer.style.boxShadow = "none";
-                    }
-                }, 2000);
-            });
-        });
+        if (hiddenHostnames.includes(newHostname)) {
+            if (searchContainer) {
+                searchContainer.style.borderColor = "#ffc107";
+                searchContainer.style.boxShadow = "0 0 0 3px rgba(255, 193, 7, 0.4)";
+            }
+            alert("This website is already in your hidden list");
+            searchInput.focus();
+            searchInput.select();
+            return;
+        }
+
+        let urlToStore = newUrl;
+        if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
+            if (newUrl.toLowerCase().startsWith('www.')) {
+                urlToStore = newUrl.substring(4);
+            }
+        }
+
+        allUrls.push(urlToStore);
+        saveToStorage();
+        renderList(allUrls);
+
+        // Success feedback
+        searchInput.value = "";
+        searchInput.placeholder = "✓ Website added successfully!";
+        if (searchContainer) {
+            searchContainer.style.borderColor = "#28a745";
+            searchContainer.style.boxShadow = "0 0 0 3px rgba(40, 167, 69, 0.4)";
+        }
+
+        // Hide suggestions
+        hideSuggestions();
+
+        setTimeout(() => {
+            searchInput.placeholder = "Search / Add Website (Press Enter to add)";
+            if (searchContainer) {
+                searchContainer.style.borderColor = "#ddd";
+                searchContainer.style.boxShadow = "none";
+            }
+        }, 2000);
     }
 
     // ✅ Extract hostname from URL and normalize it
     function extractHostname(url) {
         try {
             let hostname;
-            
+
             if (url.startsWith('http://') || url.startsWith('https://')) {
                 hostname = new URL(url).hostname;
             } else {
                 hostname = url.split('/')[0];
             }
-            
+
             if (hostname.startsWith('www.')) {
                 hostname = hostname.substring(4);
             }
-            
+
             return hostname.toLowerCase();
         } catch (e) {
             let cleanUrl = url.toLowerCase();
@@ -430,12 +681,12 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    // Render list items with enhanced UI
+    // ✅ Enhanced render list with hide buttons
     function renderList(urls) {
         if (!urlList) return;
-        
+
         urlList.innerHTML = "";
-        
+
         if (urls.length === 0) {
             const li = document.createElement("li");
             li.className = "empty-state";
@@ -448,7 +699,7 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        urls.forEach(url => {
+        urls.forEach((url, index) => {
             const li = document.createElement("li");
             li.className = "url-item";
 
@@ -457,7 +708,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const icon = document.createElement("img");
             icon.src = getFavicon(url);
             icon.className = "icon";
-            icon.onerror = function() {
+            icon.onerror = function () {
                 this.src = "/icons/default-site-icon.svg";
             };
 
@@ -468,6 +719,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
             const buttonsContainer = document.createElement("div");
             buttonsContainer.className = "buttons-container";
+
+            // Hide button
+            const hideBtn = document.createElement("button");
+            hideBtn.textContent = "Hide";
+            hideBtn.className = "hide-btn";
+            hideBtn.title = "Hide this website";
+            hideBtn.addEventListener("click", () => {
+                hideWebsite(index);
+            });
 
             const editBtn = document.createElement("img");
             editBtn.src = "/icons/edit-icon.svg";
@@ -495,6 +755,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             });
 
+            buttonsContainer.appendChild(hideBtn);
             buttonsContainer.appendChild(editBtn);
             buttonsContainer.appendChild(deleteBtn);
 
@@ -515,40 +776,38 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        chrome.storage.local.get({ urls: [] }, function (data) {
-            let urls = data.urls;
-            const newHostname = extractHostname(newUrl);
-            const existingHostnames = urls.map(url => extractHostname(url)).filter(h => h !== extractHostname(oldUrl));
-            
-            if (existingHostnames.includes(newHostname)) {
-                alert("This website is already in your blocked list");
-                return;
-            }
+        const newHostname = extractHostname(newUrl);
+        const existingHostnames = allUrls.map(url => extractHostname(url)).filter(h => h !== extractHostname(oldUrl));
+        const hiddenHostnames = hiddenUrls.map(url => extractHostname(url));
 
-            let urlToStore = newUrl;
-            if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
-                if (newUrl.toLowerCase().startsWith('www.')) {
-                    urlToStore = newUrl.substring(4);
-                }
-            }
+        if (existingHostnames.includes(newHostname) || hiddenHostnames.includes(newHostname)) {
+            alert("This website is already in your blocked or hidden list");
+            return;
+        }
 
-            urls = urls.map(u => (u === oldUrl ? urlToStore : u));
-            chrome.storage.local.set({ urls: urls }, function() {
-                allUrls = urls;
-                renderList(allUrls);
-            });
-        });
+        let urlToStore = newUrl;
+        if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
+            if (newUrl.toLowerCase().startsWith('www.')) {
+                urlToStore = newUrl.substring(4);
+            }
+        }
+
+        const index = allUrls.indexOf(oldUrl);
+        if (index > -1) {
+            allUrls[index] = urlToStore;
+            saveToStorage();
+            renderList(allUrls);
+        }
     }
 
     // Delete URL function
     function deleteURL(url) {
-        chrome.storage.local.get({ urls: [] }, function (data) {
-            let urls = data.urls.filter(u => u !== url);
-            chrome.storage.local.set({ urls: urls }, function() {
-                allUrls = urls;
-                renderList(allUrls);
-            });
-        });
+        const index = allUrls.indexOf(url);
+        if (index > -1) {
+            allUrls.splice(index, 1);
+            saveToStorage();
+            renderList(allUrls);
+        }
     }
 
     // Get favicon for website
@@ -575,7 +834,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Handle Enter key press for adding URLs
-    searchInput.addEventListener('keypress', function(e) {
+    searchInput.addEventListener('keypress', function (e) {
         if (e.key === 'Enter' && currentSuggestions.length === 0) {
             addURL();
         }
