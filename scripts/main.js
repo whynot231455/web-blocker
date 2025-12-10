@@ -26,6 +26,7 @@ document.addEventListener("DOMContentLoaded", function () {
             hiddenList.style.display = 'block';
             document.querySelector('.toggle-text').textContent = 'Hide Hidden';
             passwordError.style.display = 'none';
+            updateHiddenUrlList();
         } else {
             passwordError.textContent = 'Incorrect password. Please try again.';
             passwordError.style.display = 'block';
