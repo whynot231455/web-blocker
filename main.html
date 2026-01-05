@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CTRL + BLCK</title>
     <link rel="stylesheet" href="/styles/main.css">
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -14,11 +16,11 @@
                 <h1>CTRL + BLCK</h1>
             </div>
         </header>
-        
+
         <p class="tagline">block all of your distractions instantly</p>
 
         <main>
-             <section class="settings-section">
+            <section class="settings-section">
                 <h3>⚙️ Settings</h3>
                 <div class="setting-item">
                     <label for="countdownDuration">Countdown Duration:</label>
@@ -27,6 +29,11 @@
                         <option value="5" selected>5 seconds (default)</option>
                         <option value="10">10 seconds</option>
                     </select>
+                </div>
+                <div class="setting-item">
+                    <label for="tempAccessDuration">Temporary Access Duration (minutes):</label>
+                    <input type="number" id="tempAccessDuration" class="duration-input" min="1" value="10"
+                        placeholder="10">
                 </div>
             </section>
 
@@ -45,37 +52,39 @@
                 <ul id="urlList" aria-label="Blocked websites list">
                 </ul>
             </section>
-<section class="hidden-section">
-    <div class="hidden-header">
-        <h2>🔒 Hidden Websites</h2>
-        <div class="hidden-controls">
-            <button id="toggleHiddenBtn" class="toggle-hidden-btn" aria-expanded="false">
-                <span class="toggle-text">Show Hidden</span>
-                <img src="/icons/eye-icon.svg" class="eye-icon" alt="Toggle visibility">
-            </button>
-        </div>
-    </div>
+            <section class="hidden-section">
+                <div class="hidden-header">
+                    <h2>🔒 Hidden Websites</h2>
+                    <div class="hidden-controls">
+                        <button id="toggleHiddenBtn" class="toggle-hidden-btn" aria-expanded="false">
+                            <span class="toggle-text">Show Hidden</span>
+                            <img src="/icons/eye-icon.svg" class="eye-icon" alt="Toggle visibility">
+                        </button>
+                    </div>
+                </div>
 
-    <!-- Password Overlay -->
-    <div id="hiddenPasswordOverlay" class="password-overlay" style="display: none;">
-        <label for="hiddenPasswordInput">Enter Password to View Hidden Websites:</label>
-        <input id="hiddenPasswordInput" type="password" placeholder="Password" />
-        <button id="hiddenPasswordSubmit">Submit</button>
-        <p id="hiddenPasswordError" class="password-error" style="display:none; color:red; font-size:12px;"></p>
-    </div>
+                <!-- Password Overlay -->
+                <div id="hiddenPasswordOverlay" class="password-overlay" style="display: none;">
+                    <label for="hiddenPasswordInput">Enter Password to View Hidden Websites:</label>
+                    <input id="hiddenPasswordInput" type="password" placeholder="Password" />
+                    <button id="hiddenPasswordSubmit">Submit</button>
+                    <p id="hiddenPasswordError" class="password-error" style="display:none; color:red; font-size:12px;">
+                    </p>
+                </div>
 
-    <ul class="hidden-list" style="display: none;">
-        <!-- Hidden URLs populated by JS -->
-    </ul>
+                <ul class="hidden-list" style="display: none;">
+                    <!-- Hidden URLs populated by JS -->
+                </ul>
 
-    <div class="hidden-empty-state" style="display: none;">
-        <p>No hidden websites yet. Add some to keep them private!</p>
-    </div>
-</section>
+                <div class="hidden-empty-state" style="display: none;">
+                    <p>No hidden websites yet. Add some to keep them private!</p>
+                </div>
+            </section>
 
         </main>
     </div>
 
     <script src="/scripts/main.js"></script>
 </body>
+
 </html>

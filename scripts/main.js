@@ -111,6 +111,34 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // Initialize temporary access duration setting
+    function initializeTempAccessSetting() {
+        const tempAccessInput = document.getElementById('tempAccessDuration');
+        if (!tempAccessInput) return;
+
+        // Load saved duration (default 10 minutes)
+        chrome.storage.local.get({ tempAccessDuration: 10 }, function (data) {
+            tempAccessInput.value = data.tempAccessDuration;
+        });
+
+        // Save when changed
+        tempAccessInput.addEventListener('change', function () {
+            let duration = parseInt(this.value);
+            if (duration < 1) duration = 1; // Minimum 1 minute
+
+            chrome.storage.local.set({ tempAccessDuration: duration }, function () {
+                console.log('✅ Temporary access duration saved:', duration, 'minutes');
+
+                // Visual feedback
+                const originalBorder = tempAccessInput.style.borderColor;
+                tempAccessInput.style.borderColor = '#28a745';
+                setTimeout(() => {
+                    tempAccessInput.style.borderColor = originalBorder || '#ccc';
+                }, 1000);
+            });
+        });
+    }
+
     function initializeHiddenWebsites() {
         const toggleBtn = document.getElementById('toggleHiddenBtn');
         if (toggleBtn) {
@@ -295,6 +323,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Initialize settings and hidden websites
     initializeCountdownSetting();
+    initializeTempAccessSetting();
     initializeHiddenWebsites();
 
     // ✅ Function to clean up existing duplicates
