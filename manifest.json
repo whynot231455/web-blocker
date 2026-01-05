@@ -28,19 +28,27 @@
     "default_popup": "popup.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "scripts/background.js"
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content-blocker.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "scripts/content-blocker.js"
+      ],
       "run_at": "document_start"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["fonts/PressStart2P-Regular.ttf"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "fonts/PressStart2P-Regular.ttf"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

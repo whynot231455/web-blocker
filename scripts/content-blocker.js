@@ -381,9 +381,9 @@
                 border: 3px solid black !important;
                 border-top: none !important; /* Visual attachment */
                 border-radius: 0 0 12px 12px !important; 
-                padding: 15px 20px !important;
+                padding: 10px 15px !important; /* Reduced padding */
                 width: auto !important;
-                min-width: 250px !important; /* Force uniform width prevents jump */
+                min-width: 200px !important; /* Reduced min-width */
                 box-shadow: 0px 4px 0px black !important;
                 display: flex !important;
                 flex-direction: column !important;
@@ -391,8 +391,8 @@
             }
             
             .timer-header {
-                font-size: 20px !important;
-                margin-bottom: 10px !important;
+                font-size: 14px !important; /* Reduced font size */
+                margin-bottom: 6px !important; /* Reduced margin */
                 text-transform: lowercase !important;
                 font-weight: bold !important;
                 letter-spacing: 1px !important;
@@ -401,8 +401,8 @@
             
             .timer-toggle {
                 cursor: pointer !important;
-                margin-top: 8px !important;
-                font-size: 16px !important; /* Bigger Toggle */
+                margin-top: 6px !important; /* Reduced margin */
+                font-size: 12px !important; /* Reduced font size */
                 color: black !important;
                 text-align: center !important;
                 width: 100% !important;
@@ -413,7 +413,7 @@
             .timer-content-expanded {
                 display: flex !important;
                 align-items: flex-end !important;
-                gap: 8px !important;
+                gap: 6px !important; /* Reduced gap */
             }
             .time-group {
                 display: flex !important;
@@ -421,22 +421,22 @@
                 align-items: flex-start !important;
             }
             .time-group .label {
-                font-size: 10px !important;
-                margin-bottom: 6px !important;
+                font-size: 8px !important; /* Reduced font size */
+                margin-bottom: 4px !important; /* Reduced margin */
                 color: black !important;
                 text-transform: lowercase !important;
                 font-weight: bold !important;
             }
             .digits-row {
                 display: flex !important;
-                gap: 4px !important;
+                gap: 3px !important; /* Reduced gap */
             }
             .digit-box {
                 background: #222 !important;
                 color: white !important;
-                width: 30px !important;
-                height: 45px !important;
-                font-size: 20px !important;
+                width: 24px !important; /* Reduced width */
+                height: 36px !important; /* Reduced height */
+                font-size: 16px !important; /* Reduced font size */
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
@@ -444,8 +444,8 @@
                 border-radius: 0px !important;
             }
             .separator {
-                font-size: 24px !important;
-                padding-bottom: 10px !important;
+                font-size: 18px !important; /* Reduced font size */
+                padding-bottom: 6px !important; /* Reduced padding */
                 color: black !important;
                 animation: blink 1s infinite !important;
                 font-weight: bold !important;
@@ -456,10 +456,10 @@
                 display: flex !important;
                 justify-content: center !important;
                 align-items: center !important;
-                min-height: 45px !important; /* Match expanded height to avoid jump */
+                min-height: 36px !important; /* Match expanded height to avoid jump */
             }
             .digits-simple {
-                font-size: 24px !important; /* Larger font to match presence of boxes */
+                font-size: 18px !important; /* Reduced font size */
                 color: black !important;
                 letter-spacing: 2px !important;
                 text-align: center !important;

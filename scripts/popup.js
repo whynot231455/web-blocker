@@ -237,14 +237,14 @@ async function loadURL() {
                     favicon.height = 16;
 
                     favicon.addEventListener('error', function () {
-                        this.src = "./icons/default-site-icon.svg";
+                        this.src = "/icons/default-site-icon.svg";
                     });
 
                     const span = document.createElement('span');
                     span.textContent = hostname;
 
                     const close_icon = document.createElement('img');
-                    close_icon.src = "./icons/delete-icon.svg";
+                    close_icon.src = "/icons/delete-icon.svg";
                     close_icon.className = 'delete-icon';
                     close_icon.width = 16;
                     close_icon.height = 16;
@@ -353,7 +353,7 @@ function showConfirmationScreen(hostname) {
         const faviconImg = confirmationScreen.querySelector('.favicon-image');
         if (faviconImg) {
             faviconImg.addEventListener('error', function () {
-                this.src = './icons/default-site-icon.svg';
+                this.src = '/icons/default-site-icon.svg';
             });
         }
 
