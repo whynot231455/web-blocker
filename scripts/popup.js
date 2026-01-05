@@ -4,10 +4,10 @@ function extractHostname(url) {
         if (!url || typeof url !== 'string') {
             return null;
         }
-        
+
         // Clean up the URL
         let cleanUrl = url.trim();
-        
+
         // If it's already a full URL, extract hostname
         if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
             const urlObj = new URL(cleanUrl);
@@ -26,21 +26,21 @@ function extractHostname(url) {
 // Check if URL is an internal browser page
 function isInternalPage(url) {
     if (!url) return true;
-    
-    return url.startsWith('chrome://') || 
-           url.startsWith('chrome-extension://') || 
-           url.startsWith('moz-extension://') ||
-           url.startsWith('edge://') ||
-           url.startsWith('about:') ||
-           url.startsWith('file://') ||
-           url.startsWith('chrome-search://') ||
-           url.startsWith('chrome-devtools://');
+
+    return url.startsWith('chrome://') ||
+        url.startsWith('chrome-extension://') ||
+        url.startsWith('moz-extension://') ||
+        url.startsWith('edge://') ||
+        url.startsWith('about:') ||
+        url.startsWith('file://') ||
+        url.startsWith('chrome-search://') ||
+        url.startsWith('chrome-devtools://');
 }
 
 // Get internal page type for user-friendly message
 function getInternalPageType(url) {
     if (!url) return 'unknown page';
-    
+
     if (url.startsWith('chrome://')) return 'Chrome internal page';
     if (url.startsWith('chrome-extension://')) return 'browser extension page';
     if (url.startsWith('moz-extension://')) return 'Firefox extension page';
@@ -49,7 +49,7 @@ function getInternalPageType(url) {
     if (url.startsWith('file://')) return 'local file';
     if (url.startsWith('chrome-search://')) return 'Chrome search page';
     if (url.startsWith('chrome-devtools://')) return 'Chrome Developer Tools';
-    
+
     return 'internal browser page';
 }
 
@@ -58,16 +58,16 @@ let add_button, list_table, clear_button, reloadButton;
 let storageUpdateTimeout;
 
 // Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Get DOM elements
     add_button = document.querySelector('.add_button');
     list_table = document.querySelector('.list_table');
     clear_button = document.querySelector('.clear_button');
     reloadButton = document.querySelector('.reload_button');
-    
+
     // Check if we're on the confirmation screen
     const isConfirmationScreen = document.querySelector('.confirmation-screen');
-    
+
     // Initialize the popup
     initializePopup(isConfirmationScreen);
 });
@@ -77,7 +77,7 @@ async function initializePopup(isConfirmationScreen) {
         if (!isConfirmationScreen) {
             // Check current tab and set up popup accordingly
             const currentTabURL = await getCurrentTabURL();
-            
+
             if (isInternalPage(currentTabURL)) {
                 // Show internal page message instead of normal functionality
                 showInternalPageMessage(currentTabURL);
@@ -88,21 +88,21 @@ async function initializePopup(isConfirmationScreen) {
                 } else {
                     console.warn('Add button not found');
                 }
-                
+
                 if (clear_button) {
                     clear_button.addEventListener("click", removeAll_elements);
                 } else {
                     console.warn('Clear button not found');
                 }
-                
+
                 // Load URLs regardless of button availability
                 loadURL();
             }
         } else {
             // Confirmation screen functionality
             if (reloadButton) {
-                reloadButton.addEventListener("click", function() {
-                    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                reloadButton.addEventListener("click", function () {
+                    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
                         if (tabs && tabs[0]) {
                             chrome.tabs.reload(tabs[0].id);
                             window.close();
@@ -119,7 +119,7 @@ async function initializePopup(isConfirmationScreen) {
 function showInternalPageMessage(url) {
     const pageType = getInternalPageType(url);
     const popup = document.querySelector('.popup');
-    
+
     if (popup) {
         // Hide ALL popup content sections
         const header = document.querySelector('.header');
@@ -129,7 +129,7 @@ function showInternalPageMessage(url) {
         const addButton = document.querySelector('.add_button');
         const clearButton = document.querySelector('.clear_button');
         const urlList = document.querySelector('#urlList, .list_table');
-        
+
         // Hide all sections
         if (header) header.style.display = 'none';
         if (tagline) tagline.style.display = 'none';
@@ -138,11 +138,11 @@ function showInternalPageMessage(url) {
         if (addButton) addButton.style.display = 'none';
         if (clearButton) clearButton.style.display = 'none';
         if (urlList) urlList.style.display = 'none';
-        
+
         // Create internal page message as the ONLY content
         const messageDiv = document.createElement('div');
         messageDiv.className = 'internal-page-message';
-        
+
         messageDiv.innerHTML = `
             <div class="message-icon">🚫</div>
             <h3>Cannot Block This Page</h3>
@@ -150,22 +150,22 @@ function showInternalPageMessage(url) {
             <p class="message-hint">Try navigating to a regular website to use CTRL+BLCK.</p>
             <button class="edit-url-button">Edit URL List</button>
         `;
-        
+
         // Clear popup content and add only the message
         popup.innerHTML = '';
         popup.appendChild(messageDiv);
-        
+
         // Add event listener for the Edit URL List button
         const editButton = messageDiv.querySelector('.edit-url-button');
         if (editButton) {
-            editButton.addEventListener('click', function() {
+            editButton.addEventListener('click', function () {
                 // Open main.html in a new tab
                 chrome.tabs.create({ url: chrome.runtime.getURL('main.html') });
                 // Close the popup
                 window.close();
             });
         }
-        
+
         // Set popup to size that accommodates the button
         document.body.style.width = '300px';
         document.body.style.height = '250px';
@@ -176,12 +176,12 @@ function showInternalPageMessage(url) {
 async function getCurrentTabURL() {
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        
+
         // Check if tab and tab.url exist
         if (!tab || !tab.url) {
             return null;
         }
-        
+
         return tab.url;
     } catch (error) {
         console.error('Error getting current tab URL:', error);
@@ -207,7 +207,7 @@ async function loadURL() {
         if (urls && Array.isArray(urls) && list_table) {
             // Clear existing list first
             list_table.innerHTML = "";
-            
+
             const limitedURLs = urls.slice(0, 5);
 
             if (limitedURLs.length === 0) {
@@ -235,8 +235,8 @@ async function loadURL() {
                     favicon.src = `https://www.google.com/s2/favicons?domain=${hostname}`;
                     favicon.width = 16;
                     favicon.height = 16;
-                    
-                    favicon.addEventListener('error', function() {
+
+                    favicon.addEventListener('error', function () {
                         this.src = "./icons/default-site-icon.svg";
                     });
 
@@ -249,7 +249,7 @@ async function loadURL() {
                     close_icon.width = 16;
                     close_icon.height = 16;
                     close_icon.style.cursor = 'pointer';
-                    
+
 
                     li.appendChild(favicon);
                     li.appendChild(span);
@@ -267,24 +267,32 @@ async function loadURL() {
 async function add_elements() {
     try {
         const currentTabURL = await getCurrentTabURL();
-        
+
         if (!currentTabURL || isInternalPage(currentTabURL)) {
             const pageType = getInternalPageType(currentTabURL);
             alert(`Cannot block this page.\n\nThis is a ${pageType} and cannot be blocked for security reasons.`);
             return;
         }
 
-        const URL_list = await getURLs();
-        
+        const results = await chrome.storage.local.get(['urls', 'hiddenUrls']);
+        const URL_list = results.urls || [];
+        const hidden_list = results.hiddenUrls || [];
+
         // Safely extract hostname
         const currentHostname = extractHostname(currentTabURL);
-        
+
         if (!currentHostname) {
             alert('Could not determine website hostname');
             return;
         }
-        
+
         const storedHostnames = URL_list.map(url => extractHostname(url)).filter(h => h !== null);
+        const hiddenHostnames = hidden_list.map(url => extractHostname(url)).filter(h => h !== null);
+
+        if (hiddenHostnames.includes(currentHostname)) {
+            alert(`${currentHostname} is already in your hidden list!`);
+            return;
+        }
 
         if (!storedHostnames.includes(currentHostname)) {
             const updatedURLs = [currentTabURL, ...URL_list];
@@ -309,17 +317,17 @@ function showConfirmationScreen(hostname) {
         // Hide the normal popup content
         const popup = document.querySelector('.popup');
         if (popup) popup.style.display = 'none';
-        
+
         // Set larger dimensions for confirmation screen
         document.body.style.width = '320px';
         document.body.style.height = '450px';
         document.body.style.padding = '0';
         document.body.style.margin = '0';
-        
+
         // Create and show confirmation screen
         const confirmationScreen = document.createElement('div');
         confirmationScreen.className = 'confirmation-screen';
-        
+
         confirmationScreen.innerHTML = `
             <div class="confirmation-content">
                 <div class="website-info">
@@ -338,22 +346,22 @@ function showConfirmationScreen(hostname) {
                 <button class="reload_button">RELOAD PAGE</button>
             </div>
         `;
-        
+
         document.body.appendChild(confirmationScreen);
-        
+
         // Add event listeners using JavaScript instead of inline handlers
         const faviconImg = confirmationScreen.querySelector('.favicon-image');
         if (faviconImg) {
-            faviconImg.addEventListener('error', function() {
+            faviconImg.addEventListener('error', function () {
                 this.src = './icons/default-site-icon.svg';
             });
         }
-        
+
         // Add event listener to reload button
         const reloadBtn = confirmationScreen.querySelector('.reload_button');
         if (reloadBtn) {
-            reloadBtn.addEventListener('click', function() {
-                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            reloadBtn.addEventListener('click', function () {
+                chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
                     if (tabs && tabs[0]) {
                         chrome.tabs.reload(tabs[0].id);
                         window.close();
@@ -367,17 +375,17 @@ function showConfirmationScreen(hostname) {
 }
 
 // Event listener for delete functionality
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Use event delegation for dynamically created elements
     document.addEventListener("click", async function (event) {
         if (event.target.classList.contains('delete-icon')) {
             try {
                 const listItem = event.target.closest('li');
                 if (!listItem) return;
-                
+
                 const hostname = listItem.querySelector('span')?.textContent;
                 if (!hostname) return;
-                
+
                 // Remove from DOM
                 listItem.remove();
 
@@ -397,7 +405,7 @@ async function removeAll_elements() {
         await chrome.storage.local.set({ urls: [] });
         if (list_table) {
             list_table.innerHTML = "";
-            
+
             // Show empty state
             const emptyLi = document.createElement('li');
             emptyLi.className = 'empty-state';
@@ -414,13 +422,13 @@ async function removeAll_elements() {
 }
 
 // Listen for storage changes to update the list in real-time (with debouncing)
-chrome.storage.onChanged.addListener(function(changes, namespace) {
+chrome.storage.onChanged.addListener(function (changes, namespace) {
     if (namespace === 'local' && changes.urls) {
         // Debounce the update to prevent multiple rapid calls
         if (storageUpdateTimeout) {
             clearTimeout(storageUpdateTimeout);
         }
-        
+
         storageUpdateTimeout = setTimeout(() => {
             loadURL();
         }, 100); // Wait 100ms before updating

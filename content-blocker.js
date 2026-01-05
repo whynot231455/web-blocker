@@ -102,41 +102,76 @@
         timerContainer.id = 'ctrl-blck-timer';
         timerContainer.className = 'ctrl-blck-timer-container';
 
-        // Timer structure logic
+        // Dual View Structure: Expanded (Split Digits) & Minimized (Simple Digits)
+        // Defaulting to EXPANDED view as per user 'when expanded' image request interaction flow
         timerContainer.innerHTML = `
-            <div class="timer-header">
-                <span>TIMER</span>
-                <span id="timer-toggle" class="timer-toggle">▼</span>
+            <!-- EXPANDED VIEW -->
+            <div id="view-expanded">
+                <div class="timer-header">timer</div>
+                <div class="timer-content-expanded">
+                    <div class="time-group">
+                        <span class="label">hour(s)</span>
+                        <div class="digits-row">
+                            <div class="digit-box" id="h1">0</div>
+                            <div class="digit-box" id="h2">0</div>
+                        </div>
+                    </div>
+                    <div class="separator">:</div>
+                    <div class="time-group">
+                        <span class="label">minute(s)</span>
+                        <div class="digits-row">
+                            <div class="digit-box" id="m1">0</div>
+                            <div class="digit-box" id="m2">0</div>
+                        </div>
+                    </div>
+                    <div class="separator">:</div>
+                    <div class="time-group">
+                        <span class="label">second(s)</span>
+                        <div class="digits-row">
+                            <div class="digit-box" id="s1">0</div>
+                            <div class="digit-box" id="s2">0</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div id="timer-content" class="timer-content">
-                <div class="time-group">
-                    <span class="label">hour(s)</span>
-                    <div class="digits" id="timer-hours">00</div>
-                </div>
-                <div class="separator">:</div>
-                <div class="time-group">
-                    <span class="label">minute(s)</span>
-                    <div class="digits" id="timer-minutes">00</div>
-                </div>
-                <div class="separator">:</div>
-                <div class="time-group">
-                    <span class="label">second(s)</span>
-                    <div class="digits" id="timer-seconds">00</div>
+
+            <!-- MINIMIZED VIEW -->
+            <div id="view-minimized" style="display: none;">
+                <div class="timer-header">time left</div>
+                <div class="timer-content-minimized">
+                    <div class="digits-simple" id="timer-digits-simple">00 : 00 : 00</div>
                 </div>
             </div>
+
+            <div id="timer-toggle" class="timer-toggle">^</div>
         `;
 
-        document.body.appendChild(timerContainer);
+        if (document.body) {
+            document.body.appendChild(timerContainer);
+        } else {
+            document.documentElement.appendChild(timerContainer);
+        }
 
         // Toggle functionality
         const toggleBtn = timerContainer.querySelector('#timer-toggle');
-        const content = timerContainer.querySelector('#timer-content');
+        const viewExpanded = timerContainer.querySelector('#view-expanded');
+        const viewMinimized = timerContainer.querySelector('#view-minimized');
         let isMinimized = false;
 
         toggleBtn.addEventListener('click', () => {
             isMinimized = !isMinimized;
-            content.style.display = isMinimized ? 'none' : 'flex';
-            toggleBtn.textContent = isMinimized ? '▲' : '▼';
+
+            if (isMinimized) {
+                viewExpanded.style.display = 'none';
+                viewMinimized.style.display = 'block';
+                toggleBtn.textContent = 'v'; // Point down to expand
+                // timerContainer.style.padding = '10px 20px'; // REMOVED dynamic padding for consistency
+            } else {
+                viewExpanded.style.display = 'block';
+                viewMinimized.style.display = 'none';
+                toggleBtn.textContent = '^'; // Point up to minimize
+                // timerContainer.style.padding = '15px 20px'; // REMOVED dynamic padding for consistency
+            }
         });
 
         // Update timer loop
@@ -147,14 +182,11 @@
             if (timeLeft <= 0) {
                 clearInterval(timerInterval);
                 removeRetroTimer();
-                // Trigger re-check will happen naturally via storage listener if we clear it, 
-                // but local check is faster to block immediately.
-                // We should also clear the allowedSite from storage to be clean.
                 chrome.storage.local.get({ allowedSites: {} }, function (result) {
                     const sites = result.allowedSites;
                     delete sites[normalizedCurrentHostname];
                     chrome.storage.local.set({ allowedSites: sites }, function () {
-                        // This will trigger the storage listener -> checkBlocking -> blockSite
+                        // Listener triggers block
                     });
                 });
                 return;
@@ -168,19 +200,28 @@
     }
 
     function updateTimerDisplay(ms) {
-        const totalSeconds = Math.floor(ms / 1000);
+        const totalSeconds = Math.max(0, Math.floor(ms / 1000));
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
         const seconds = totalSeconds % 60;
 
-        const hEl = document.getElementById('timer-hours');
-        const mEl = document.getElementById('timer-minutes');
-        const sEl = document.getElementById('timer-seconds');
+        const hStr = String(hours).padStart(2, '0');
+        const mStr = String(minutes).padStart(2, '0');
+        const sStr = String(seconds).padStart(2, '0');
 
-        if (hEl && mEl && sEl) {
-            hEl.textContent = String(hours).padStart(2, '0');
-            mEl.textContent = String(minutes).padStart(2, '0');
-            sEl.textContent = String(seconds).padStart(2, '0');
+        // Update Expanded View Digits
+        const setDigit = (id, char) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = char;
+        };
+        setDigit('h1', hStr[0]); setDigit('h2', hStr[1]);
+        setDigit('m1', mStr[0]); setDigit('m2', mStr[1]);
+        setDigit('s1', sStr[0]); setDigit('s2', sStr[1]);
+
+        // Update Minimized View Digits
+        const simpleDigits = document.getElementById('timer-digits-simple');
+        if (simpleDigits) {
+            simpleDigits.textContent = `${hStr} : ${mStr} : ${sStr}`;
         }
     }
 
@@ -328,68 +369,100 @@
                 box-shadow: 2px 2px 0px 0px black !important;
             }
             
-            /* Timer Styles */
+            /* DUAL VIEW TIMER STYLES */
             .ctrl-blck-timer-container {
                 position: fixed !important;
-                top: 10px !important;
-                right: 10px !important;
-                background: black !important;
-                color: white !important;
+                top: 0px !important; /* Attached to toolbar */
+                right: 20px !important;
+                background: white !important;
+                color: black !important;
                 z-index: 2147483647 !important;
                 font-family: 'Press Start 2P', monospace, sans-serif !important;
-                border: 2px solid white !important;
-                padding: 10px !important;
-                border-radius: 4px !important;
+                border: 3px solid black !important;
+                border-top: none !important; /* Visual attachment */
+                border-radius: 0 0 12px 12px !important; 
+                padding: 15px 20px !important;
                 width: auto !important;
-            }
-            
-            .timer-header {
-                display: flex !important;
-                justify-content: space-between !important;
-                align-items: center !important;
-                margin-bottom: 5px !important;
-                font-size: 12px !important;
-                letter-spacing: 2px !important;
-                text-transform: uppercase !important;
-            }
-            
-            .timer-toggle {
-                cursor: pointer !important;
-                margin-left: 10px !important;
-                font-size: 10px !important;
-            }
-            
-            .timer-content {
-                display: flex !important;
-                align-items: flex-end !important;
-                gap: 5px !important;
-            }
-            
-            .time-group {
+                min-width: 250px !important; /* Force uniform width prevents jump */
+                box-shadow: 0px 4px 0px black !important;
                 display: flex !important;
                 flex-direction: column !important;
                 align-items: center !important;
             }
             
-            .time-group .label {
-                font-size: 8px !important;
-                margin-bottom: 5px !important;
-                color: #ccc !important;
-            }
-            
-            .digits {
-                background: #222 !important;
-                padding: 5px !important;
+            .timer-header {
                 font-size: 20px !important;
-                border: 1px solid #444 !important;
-                min-width: 40px !important;
+                margin-bottom: 10px !important;
+                text-transform: lowercase !important;
+                font-weight: bold !important;
+                letter-spacing: 1px !important;
                 text-align: center !important;
             }
             
-            .separator {
+            .timer-toggle {
+                cursor: pointer !important;
+                margin-top: 8px !important;
+                font-size: 16px !important; /* Bigger Toggle */
+                color: black !important;
+                text-align: center !important;
+                width: 100% !important;
+                font-weight: bold !important;
+            }
+
+            /* Expanded Styles */
+            .timer-content-expanded {
+                display: flex !important;
+                align-items: flex-end !important;
+                gap: 8px !important;
+            }
+            .time-group {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: flex-start !important;
+            }
+            .time-group .label {
+                font-size: 10px !important;
+                margin-bottom: 6px !important;
+                color: black !important;
+                text-transform: lowercase !important;
+                font-weight: bold !important;
+            }
+            .digits-row {
+                display: flex !important;
+                gap: 4px !important;
+            }
+            .digit-box {
+                background: #222 !important;
+                color: white !important;
+                width: 30px !important;
+                height: 45px !important;
                 font-size: 20px !important;
-                padding-bottom: 5px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border: none !important;
+                border-radius: 0px !important;
+            }
+            .separator {
+                font-size: 24px !important;
+                padding-bottom: 10px !important;
+                color: black !important;
                 animation: blink 1s infinite !important;
+                font-weight: bold !important;
+            }
+
+            /* Minimized Styles */
+            .timer-content-minimized {
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                min-height: 45px !important; /* Match expanded height to avoid jump */
+            }
+            .digits-simple {
+                font-size: 24px !important; /* Larger font to match presence of boxes */
+                color: black !important;
+                letter-spacing: 2px !important;
+                text-align: center !important;
             }
             
             @keyframes blink {

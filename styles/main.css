@@ -588,7 +588,8 @@ h1 {
     min-width: 100px;
 }
 
-.duration-dropdown {
+.duration-dropdown,
+.duration-input {
     padding: 8px 12px;
     font-size: 11px;
     font-family: 'bitFont', sans-serif;
@@ -601,11 +602,13 @@ h1 {
     min-width: 150px;
 }
 
-.duration-dropdown:hover {
+.duration-dropdown:hover,
+.duration-input:hover {
     border-color: #FF4141;
 }
 
-.duration-dropdown:focus {
+.duration-dropdown:focus,
+.duration-input:focus {
     outline: none;
     border-color: #FF4141;
     box-shadow: 0 0 0 3px rgba(255, 65, 65, 0.1);
