@@ -759,18 +759,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 hideWebsite(index);
             });
 
-            const editBtn = document.createElement("img");
-            editBtn.src = "/icons/edit-icon.svg";
-            editBtn.className = "edit-icon";
-            editBtn.title = "Edit URL";
-            editBtn.style.width = "20px";
-            editBtn.style.height = "20px";
-            editBtn.style.cursor = "pointer";
-            editBtn.style.opacity = "1";
-            editBtn.addEventListener("click", () => {
-                editURL(url);
-            });
-
             const deleteBtn = document.createElement("img");
             deleteBtn.src = "/icons/delete-icon.svg";
             deleteBtn.className = "delete-icon";
@@ -786,7 +774,6 @@ document.addEventListener("DOMContentLoaded", function () {
             });
 
             buttonsContainer.appendChild(hideBtn);
-            buttonsContainer.appendChild(editBtn);
             buttonsContainer.appendChild(deleteBtn);
 
             li.appendChild(icon);
@@ -794,40 +781,6 @@ document.addEventListener("DOMContentLoaded", function () {
             li.appendChild(buttonsContainer);
             urlList.appendChild(li);
         });
-    }
-
-    // Edit URL function
-    function editURL(oldUrl) {
-        const newUrl = prompt("Edit URL:", oldUrl);
-        if (!newUrl || newUrl === oldUrl) return;
-
-        if (!isValidUrl(newUrl)) {
-            alert("Please enter a valid URL or domain name");
-            return;
-        }
-
-        const newHostname = extractHostname(newUrl);
-        const existingHostnames = allUrls.map(url => extractHostname(url)).filter(h => h !== extractHostname(oldUrl));
-        const hiddenHostnames = hiddenUrls.map(url => extractHostname(url));
-
-        if (existingHostnames.includes(newHostname) || hiddenHostnames.includes(newHostname)) {
-            alert("This website is already in your blocked or hidden list");
-            return;
-        }
-
-        let urlToStore = newUrl;
-        if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
-            if (newUrl.toLowerCase().startsWith('www.')) {
-                urlToStore = newUrl.substring(4);
-            }
-        }
-
-        const index = allUrls.indexOf(oldUrl);
-        if (index > -1) {
-            allUrls[index] = urlToStore;
-            saveToStorage();
-            renderList(allUrls);
-        }
     }
 
     // Delete URL function
@@ -869,4 +822,84 @@ document.addEventListener("DOMContentLoaded", function () {
             addURL();
         }
     });
+
+    // ✅ View Navigation Logic
+    function initializeNavigation() {
+        const navItems = document.querySelectorAll('.nav-item');
+        const viewSections = document.querySelectorAll('.view-section');
+
+        // Sidebar Elements
+        const sidebar = document.querySelector('.sidebar');
+        const openMenuBtn = document.getElementById('openMenuBtn');
+        const closeMenuBtn = document.getElementById('closeMenuBtn');
+
+        // Toggle Sidebar Function
+        function toggleSidebar() {
+            sidebar.classList.toggle('expanded');
+
+            const isExpanded = sidebar.classList.contains('expanded');
+            if (isExpanded) {
+                openMenuBtn.style.display = 'none';
+                closeMenuBtn.style.display = 'flex';
+            } else {
+                openMenuBtn.style.display = 'flex';
+                closeMenuBtn.style.display = 'none';
+            }
+        }
+
+        // Event Listeners for Menu Toggle
+        if (openMenuBtn) openMenuBtn.addEventListener('click', toggleSidebar);
+        if (closeMenuBtn) closeMenuBtn.addEventListener('click', toggleSidebar);
+
+        // Close sidebar when clicking outside
+        document.addEventListener('click', function (event) {
+            const isExpanded = sidebar.classList.contains('expanded');
+            const isClickInsideSidebar = sidebar.contains(event.target);
+            const isClickOnOpenBtn = openMenuBtn && openMenuBtn.contains(event.target);
+
+            if (isExpanded && !isClickInsideSidebar && !isClickOnOpenBtn) {
+                toggleSidebar();
+            }
+        });
+
+        function switchView(targetId) {
+            // Update Nav Items
+            navItems.forEach(item => {
+                if (item.dataset.target === targetId) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+
+            // Update View Sections
+            viewSections.forEach(section => {
+                if (section.id === `view-${targetId}`) {
+                    section.classList.add('active');
+                } else {
+                    section.classList.remove('active');
+                }
+            });
+
+            // Save active view preference
+            localStorage.setItem('ctrlBlck_activeView', targetId);
+        }
+
+        // Add Click Listeners
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const target = item.dataset.target;
+                if (target) {
+                    switchView(target);
+                }
+            });
+        });
+
+        // Restore last active view or default to dashboard
+        const lastView = localStorage.getItem('ctrlBlck_activeView') || 'dashboard';
+        switchView(lastView);
+    }
+
+    // Initialize Navigation
+    initializeNavigation();
 });

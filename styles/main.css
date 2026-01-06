@@ -282,7 +282,7 @@ h1 {
 }
 
 .delete:hover {
-    color: #dc3545;
+    color: #FF4141;
 }
 
 /* Empty state */
@@ -336,7 +336,7 @@ h1 {
 
 #urlList li i.delete {
     margin-left: 10px;
-    color: red;
+    color: #FF4141;
 }
 
 /* HIDDEN WEBSITES SECTION */
@@ -496,7 +496,7 @@ h1 {
 
 /* Hidden Delete Button */
 .hidden-delete-btn {
-    background: #dc3545;
+    background: #FF4141;
     color: white;
     border: none;
     padding: 6px 12px;
@@ -508,7 +508,7 @@ h1 {
 }
 
 .hidden-delete-btn:hover {
-    background: #c82333;
+    background: #FF4141;
     transform: translateY(-1px);
 }
 
@@ -686,4 +686,250 @@ h1 {
 
 .password-overlay button:hover {
     background-color: #5a6268;
+}
+
+/* APP LAYOUT */
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+}
+
+/* SIDEBAR */
+/* SIDEBAR */
+.sidebar {
+    width: 80px;
+    background: #ffffff;
+    border-right: 1px solid #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Center items horizontally (for collapsed state) */
+    padding-top: 30px;
+    position: fixed;
+    height: 100%;
+    z-index: 1000;
+    /* High z-index to overlay content */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-x: hidden;
+    white-space: nowrap;
+    /* Prevent text wrap during transition */
+}
+
+/* EXPANDED SIDEBAR STATE */
+.sidebar.expanded {
+    width: 260px;
+    background: #FF4141;
+    /* RED BACKGROUND */
+    align-items: flex-start;
+    /* Align left when expanded */
+    padding-left: 30px;
+    /* Add padding when expanded */
+    border-right: none;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-header {
+    margin-bottom: 50px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    /* Center align by default (collapsed) */
+}
+
+.sidebar.expanded .sidebar-header {
+    justify-content: flex-start;
+    /* Left align when expanded */
+}
+
+/* Menu Buttons */
+.menu-btn {
+    cursor: pointer;
+    display: flex;
+    padding: 10px;
+}
+
+/* Hamburger Styles */
+.menu-btn.hamburger {
+    flex-direction: column;
+    gap: 5px;
+    /* margin-left: -5px; Removed manual adjustment */
+}
+
+/* Hide hamburger when expanded */
+.sidebar.expanded .menu-btn.hamburger {
+    display: none;
+}
+
+.menu-btn .bar {
+    width: 20px;
+    height: 2px;
+    background-color: #333;
+    border-radius: 2px;
+}
+
+/* Close Button Styles */
+.menu-btn.close-btn {
+    align-items: center;
+    gap: 15px;
+    margin-left: -5px;
+}
+
+.close-icon {
+    width: 16px;
+    height: 16px;
+    filter: brightness(0) invert(1);
+    /* Make white */
+}
+
+.close-text {
+    font-family: 'bitFont', sans-serif;
+    color: white;
+    font-size: 14px;
+    margin-top: 3px;
+    /* visual alignment */
+}
+
+/* Nav Styles */
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    width: 100%;
+    align-items: center;
+    /* Default center for icons */
+}
+
+.sidebar.expanded .sidebar-nav {
+    align-items: flex-start;
+    /* Left align when expanded */
+}
+
+.nav-item {
+    cursor: pointer;
+    opacity: 0.4;
+    transition: all 0.2s ease;
+    padding: 12px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    /* Space between icon and text */
+    width: auto;
+    justify-content: center;
+    /* Center content initially */
+}
+
+.sidebar.expanded .nav-item {
+    opacity: 0.7;
+    width: 100%;
+    /* Full width when expanded */
+    padding-left: 0;
+    justify-content: flex-start;
+    /* Align left */
+}
+
+.nav-item:hover {
+    opacity: 0.8;
+    background-color: #f8f9fa;
+}
+
+/* Remove hover bg on red menu, just opacity change */
+.sidebar.expanded .nav-item:hover {
+    opacity: 1;
+    background-color: transparent;
+}
+
+.nav-item.active {
+    opacity: 1;
+    background-color: #f0f0f0;
+}
+
+/* Active State on Red Menu */
+.sidebar.expanded .nav-item.active {
+    background-color: transparent;
+    opacity: 1;
+}
+
+.nav-icon {
+    width: 24px;
+    height: 24px;
+    display: block;
+    transition: filter 0.2s;
+}
+
+/* Text Labels */
+.nav-text {
+    display: none;
+    font-family: 'bitFont', sans-serif;
+    font-size: 12px;
+    white-space: nowrap;
+    margin-top: 4px;
+    /* Visual alignment with icon */
+}
+
+/* Modifications for Expanded State */
+.sidebar.expanded .nav-icon {
+    filter: brightness(0) invert(1);
+    /* Turn icons WHITE */
+}
+
+.sidebar.expanded .nav-text {
+    display: block;
+    color: white;
+}
+
+/* MAIN CONTENT */
+.main-content {
+    flex: 1;
+    margin-left: 80px;
+    /* Match sidebar width */
+    padding: 40px 60px;
+    /* Generous padding */
+    background: #ffffff;
+    max-width: 1200px;
+    /* Prevent overly wide content on large screens */
+}
+
+/* VIEW SECTIONS */
+.view-section {
+    display: none;
+    width: 100%;
+}
+
+.view-section.active {
+    display: block;
+    animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Specific styling to center the Dashboard content */
+#view-dashboard {
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Placeholder Content */
+.placeholder-content {
+    text-align: center;
+    color: #999;
+    padding: 80px;
+    font-style: italic;
+    font-family: 'bitFont', sans-serif;
+    font-size: 12px;
+    border: 2px dashed #eee;
+    border-radius: 12px;
+    margin-top: 20px;
 }
