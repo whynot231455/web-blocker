@@ -325,6 +325,36 @@ document.addEventListener("DOMContentLoaded", function () {
     initializeCountdownSetting();
     initializeTempAccessSetting();
     initializeHiddenWebsites();
+    initializeDarkMode(); // Initialize Dark Mode
+
+    // ✅ Dark Mode Setting
+    function initializeDarkMode() {
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        if (!darkModeToggle) return;
+
+        // Load saved preference
+        chrome.storage.local.get({ darkMode: false }, function (data) {
+            if (data.darkMode) {
+                document.body.classList.add('dark-mode');
+                darkModeToggle.checked = true;
+            }
+        });
+
+        // Listen for changes
+        darkModeToggle.addEventListener('change', function () {
+            const isDark = this.checked;
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+            }
+
+            // Save preference
+            chrome.storage.local.set({ darkMode: isDark }, function () {
+                console.log('✅ Dark Mode preference saved:', isDark);
+            });
+        });
+    }
 
     // ✅ Function to clean up existing duplicates
     function removeDuplicateHostnames() {
@@ -723,7 +753,6 @@ document.addEventListener("DOMContentLoaded", function () {
             li.innerHTML = `
                 <div class="empty-icon">🚫</div>
                 <div class="empty-text">No websites blocked yet</div>
-                <div class="empty-subtext">Start typing to see suggestions or add a website</div>
             `;
             urlList.appendChild(li);
             return;
@@ -852,12 +881,12 @@ document.addEventListener("DOMContentLoaded", function () {
         if (closeMenuBtn) closeMenuBtn.addEventListener('click', toggleSidebar);
 
         // Close sidebar when clicking outside
-        document.addEventListener('click', function (event) {
+        document.addEventListener('click', (e) => {
             const isExpanded = sidebar.classList.contains('expanded');
-            const isClickInsideSidebar = sidebar.contains(event.target);
-            const isClickOnOpenBtn = openMenuBtn && openMenuBtn.contains(event.target);
+            const isClickInside = sidebar.contains(e.target);
+            const isClickOnToggle = openMenuBtn.contains(e.target);
 
-            if (isExpanded && !isClickInsideSidebar && !isClickOnOpenBtn) {
+            if (isExpanded && !isClickInside && !isClickOnToggle) {
                 toggleSidebar();
             }
         });
