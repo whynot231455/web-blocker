@@ -1,94 +1,98 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Shield, Zap, Target, ArrowRight, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white text-black font-mono">
       {/* Navbar */}
-      <nav className="flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="bg-blue-600 p-1.5 rounded-lg text-white">
-            <Shield size={24} />
-          </div>
-          <span className="text-xl font-bold tracking-tight font-mono">CTRL+BLCK</span>
+      <nav className="flex items-center justify-between px-8 py-8 border-b-2 border-black sticky top-0 bg-white z-50">
+        <div className="flex items-center gap-4">
+          <Image
+            src="/icons/logopic1-48.png"
+            alt="CTRL+BLCK Logo"
+            width={48}
+            height={48}
+            className="object-contain"
+            unoptimized
+          />
+          <span className="text-xl font-bold tracking-tighter uppercase">CTRL + BLCK</span>
         </div>
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
-          <a href="#features" className="hover:text-blue-600 transition-colors">Features</a>
-          <a href="#how-it-works" className="hover:text-blue-600 transition-colors">How it Works</a>
-          <a href="#pricing" className="hover:text-blue-600 transition-colors">Pricing</a>
+        <div className="hidden md:flex items-center gap-8 text-[10px] font-bold uppercase tracking-widest">
+          <a href="#features" className="hover:underline">Features</a>
+          <a href="#how-it-works" className="hover:underline">How it Works</a>
+          <a href="#pricing" className="hover:underline">Pricing</a>
         </div>
         <div className="flex items-center gap-4">
           <Link href="/login">
-            <Button variant="ghost">Login</Button>
+            <button className="text-[10px] font-bold uppercase tracking-widest px-4 py-2 hover:bg-gray-100 transition-colors">Login</button>
           </Link>
           <Link href="/dashboard">
-            <Button variant="primary" className="rounded-full px-6">Get Started</Button>
+            <button className="text-[10px] font-bold uppercase tracking-widest bg-black text-white px-6 py-3 border-2 border-black shadow-[4px_4px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
+              Get Started
+            </button>
           </Link>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-20 pb-32 overflow-hidden">
+      <section className="relative pt-24 pb-32 border-b-2 border-black overflow-hidden bg-white">
         <div className="max-w-7xl mx-auto px-8 relative z-10">
-          <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold mb-6 animate-bounce">
+          <div className="text-center max-w-4xl mx-auto">
+            <div className="inline-flex items-center gap-3 px-4 py-2 border-2 border-black bg-white mb-8 animate-pulse shadow-[4px_4px_0px_#000]">
               <Zap size={14} />
-              NEW: SUPABASE SYNC NOW LIVE
+              <span className="text-[8px] font-bold uppercase">NEW: SUPABASE SYNC NOW LIVE</span>
             </div>
-            <h1 className="text-6xl font-extrabold text-gray-900 tracking-tight leading-tight mb-6">
+            <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight leading-tight mb-8">
               Reclaim your focus. <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+              <span className="bg-black text-white px-4 py-2 inline-block mt-2">
                 Block distractions.
               </span>
             </h1>
-            <p className="text-xl text-gray-500 mb-10 leading-relaxed">
+            <p className="text-xs md:text-sm font-bold text-gray-700 mb-12 leading-relaxed uppercase tracking-wider max-w-2xl mx-auto">
               The lightweight Chrome Extension that helps you stay productive by blocking distracting websites with a seamless, synced experience.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
               <Link href="/dashboard">
-                <Button variant="primary" className="text-lg py-6 px-10 rounded-full shadow-xl shadow-blue-200">
-                  Go to Dashboard <ArrowRight className="ml-2" />
-                </Button>
+                <button className="text-[12px] font-bold uppercase tracking-widest bg-black text-white px-10 py-6 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.2)] hover:shadow-[8px_8px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center gap-3">
+                  Go to Dashboard <ArrowRight size={20} />
+                </button>
               </Link>
-              <Button variant="secondary" className="text-lg py-6 px-10 rounded-full">
+              <button className="text-[12px] font-bold uppercase tracking-widest bg-white text-black px-10 py-6 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.1)] hover:shadow-[8px_8px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all">
                 Install Extension
-              </Button>
+              </button>
             </div>
-            <div className="mt-12 flex items-center justify-center gap-8 text-sm text-gray-400 font-medium">
-              <div className="flex items-center gap-2"><CheckCircle size={16} className="text-green-500" /> Free forever</div>
-              <div className="flex items-center gap-2"><CheckCircle size={16} className="text-green-500" /> Manifest V3 Ready</div>
-              <div className="flex items-center gap-2"><CheckCircle size={16} className="text-green-500" /> Supabase Synced</div>
+            <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-[8px] font-bold uppercase tracking-widest text-gray-500">
+              <div className="flex items-center gap-2"><CheckCircle size={16} className="text-black" /> Free forever</div>
+              <div className="flex items-center gap-2"><CheckCircle size={16} className="text-black" /> Manifest V3 Ready</div>
+              <div className="flex items-center gap-2"><CheckCircle size={16} className="text-black" /> Supabase Synced</div>
             </div>
           </div>
         </div>
-        
-        {/* Background blobs */}
-        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[600px] h-[600px] bg-blue-50 rounded-full blur-3xl opacity-50"></div>
-        <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-indigo-50 rounded-full blur-3xl opacity-50"></div>
       </section>
 
       {/* Features section */}
-      <section id="features" className="py-24 bg-gray-50">
+      <section id="features" className="py-32 bg-gray-50 border-b-2 border-black">
         <div className="max-w-7xl mx-auto px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Everything you need to stay focused</h2>
-            <p className="text-gray-500 max-w-lg mx-auto">Built for developers and deep-work enthusiasts who value their time.</p>
+          <div className="text-center mb-20">
+            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight mb-6">Everything you need to focus</h2>
+            <p className="text-[10px] font-bold text-gray-600 max-w-lg mx-auto uppercase tracking-widest leading-loose">Built for developers and deep-work enthusiasts who value their time.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {[
-              { title: 'One-Click Blocking', description: 'Block any site instantly from our sleek popup interface.', icon: Zap, color: 'text-orange-500 bg-orange-100' },
-              { title: 'Cloud Sync', description: 'Sync your blocked sites across all browsers and devices with Supabase.', icon: Shield, color: 'text-blue-500 bg-blue-100' },
-              { title: 'Productivity Stats', description: 'Visualize your progress and reclaimed focus time in the dashboard.', icon: Target, color: 'text-purple-500 bg-purple-100' },
+              { title: 'One-Click Blocking', description: 'Block any site instantly from our sleek pixel-perfect interface.', icon: Zap },
+              { title: 'Cloud Sync', description: 'Sync your blocked sites across all browsers and devices with Supabase.', icon: Shield },
+              { title: 'Productivity Stats', description: 'Visualize your progress and reclaimed focus time in the dashboard.', icon: Target },
             ].map((feature) => (
-              <div key={feature.title} className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-6 ${feature.color}`}>
-                  <feature.icon size={24} />
+              <div key={feature.title} className="bg-white p-10 border-2 border-black shadow-[8px_8px_0px_#000] hover:-translate-x-1 hover:-translate-y-1 transition-transform">
+                <div className="w-16 h-16 bg-black text-white flex items-center justify-center mb-8 border-2 border-black">
+                  <feature.icon size={32} />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
-                <p className="text-gray-500 leading-relaxed">{feature.description}</p>
+                <h3 className="text-lg font-black uppercase tracking-tighter mb-4">{feature.title}</h3>
+                <p className="text-[9px] font-bold text-gray-600 leading-relaxed uppercase tracking-widest">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -96,17 +100,26 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2 opacity-50">
-            <Shield size={20} />
-            <span className="font-bold font-mono">CTRL+BLCK</span>
+      <footer className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row items-center justify-between gap-10">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/icons/logopic1-48.png"
+              alt="CTRL+BLCK Logo"
+              width={32}
+              height={32}
+              className="object-contain"
+              unoptimized
+            />
+            <span className="text-sm font-black uppercase tracking-widest">CTRL + BLCK</span>
           </div>
-          <p className="text-sm text-gray-400">&copy; 2026 CTRL+BLCK. Built with Next.js & Supabase.</p>
-          <div className="flex gap-6 text-sm text-gray-400">
-            <a href="#" className="hover:text-blue-600 transition-colors">Privacy</a>
-            <a href="#" className="hover:text-blue-600 transition-colors">Terms</a>
-            <a href="#" className="hover:text-blue-600 transition-colors">Github</a>
+          <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest text-center">
+            &copy; 2026 CTRL + BLCK. Built with Next.js & Supabase.
+          </p>
+          <div className="flex gap-8 text-[8px] font-bold uppercase tracking-widest text-gray-500">
+            <a href="#" className="hover:text-black transition-colors">Privacy</a>
+            <a href="#" className="hover:text-black transition-colors">Terms</a>
+            <a href="#" className="hover:text-black transition-colors">Github</a>
           </div>
         </div>
       </footer>
