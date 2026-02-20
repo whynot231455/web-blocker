@@ -1,8 +1,6 @@
 'use client';
 
 import React from 'react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
@@ -12,104 +10,123 @@ export default function LoginPage() {
   const [password, setPassword] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [info, setInfo] = React.useState<string | null>(null);
+  const [mode, setMode] = React.useState<'signin' | 'signup'>('signin');
   const { signIn, signUp } = useAuth();
   const router = useRouter();
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-    const { error } = await signIn(email, password);
-    if (error) {
-      setError(error.message);
-      setIsLoading(false);
-    } else {
-      router.push('/dashboard');
-    }
-  };
+    setInfo(null);
 
-  const handleSignUp = async () => {
-    setIsLoading(true);
-    setError(null);
-    const { error } = await signUp(email, password);
-    if (error) {
-      setError(error.message);
+    if (mode === 'signin') {
+      const { error } = await signIn(email, password);
+      if (error) {
+        setError(error.message);
+        setIsLoading(false);
+      } else {
+        router.push('/dashboard');
+      }
     } else {
-      alert('Check your email for the confirmation link!');
+      const { error } = await signUp(email, password);
+      if (error) {
+        setError(error.message);
+        setIsLoading(false);
+      } else {
+        setInfo('Account created! Check your email for a confirmation link before signing in.');
+        setIsLoading(false);
+        setMode('signin');
+      }
     }
-    setIsLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-        <div className="text-center">
-          <div className="flex justify-center">
-            <div className="bg-blue-600 p-3 rounded-2xl text-white">
-              <Shield size={32} />
-            </div>
+    <div
+      className="min-h-screen flex items-center justify-center bg-white"
+      style={{ fontFamily: "'Press Start 2P', cursive" }}
+    >
+      <div
+        className="w-full max-w-md p-8 bg-white border-2 border-black"
+        style={{ boxShadow: '6px 6px 0px #000' }}
+      >
+        {/* Header */}
+        <div className="flex flex-col items-center mb-8 gap-3">
+          <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center">
+            <Shield size={24} color="white" />
           </div>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900 font-mono">
-            Welcome Back
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Sign in to manage your productivity
+          <h1 style={{ fontSize: '14px', letterSpacing: '0.1em' }}>
+            CTRL + BLCK
+          </h1>
+          <p style={{ fontSize: '8px', color: '#555', textAlign: 'center' }}>
+            {mode === 'signin' ? 'sign in to your account' : 'create a new account'}
           </p>
         </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSignIn}>
-          <div className="space-y-4">
-            <Input 
-              label="Email address" 
-              type="email" 
-              placeholder="you@example.com" 
-              required 
+
+        {/* Info / Error banners */}
+        {info && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-400 text-green-700" style={{ fontSize: '8px' }}>
+            {info}
+          </div>
+        )}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-400 text-red-700" style={{ fontSize: '8px' }}>
+            {error}
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="flex flex-col gap-2">
+            <label style={{ fontSize: '8px', fontWeight: 'bold' }}>EMAIL</label>
+            <input
+              type="email"
+              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full px-3 py-3 border-2 border-black focus:outline-none focus:ring-0"
+              style={{ fontSize: '9px' }}
             />
-            <Input 
-              label="Password" 
-              type="password" 
-              placeholder="••••••••" 
-              required 
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label style={{ fontSize: '8px', fontWeight: 'bold' }}>PASSWORD</label>
+            <input
+              type="password"
+              required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              error={error || undefined}
+              placeholder="••••••••"
+              className="w-full px-3 py-3 border-2 border-black focus:outline-none focus:ring-0"
+              style={{ fontSize: '9px' }}
             />
+            {mode === 'signup' && (
+              <span style={{ fontSize: '7px', color: '#888' }}>
+                At least 8 characters
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input type="checkbox" className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
-              <label className="ml-2 block text-sm text-gray-900">Remember me</label>
-            </div>
-            <div className="text-sm">
-              <a href="#" className="font-medium text-blue-600 hover:text-blue-500">Forgot password?</a>
-            </div>
-          </div>
-
-          <Button className="w-full py-3" variant="primary" isLoading={isLoading} type="submit">
-            Sign In
-          </Button>
-
-          <Button 
-            className="w-full py-3" 
-            variant="secondary" 
-            type="button" 
-            onClick={handleSignUp}
+          <button
+            type="submit"
             disabled={isLoading}
+            className="w-full py-3 bg-black text-white hover:bg-gray-800 transition-colors disabled:opacity-50"
+            style={{ fontSize: '8px', letterSpacing: '0.1em' }}
           >
-            Create Account
-          </Button>
+            {isLoading ? 'LOADING...' : mode === 'signin' ? 'SIGN IN' : 'CREATE ACCOUNT'}
+          </button>
         </form>
 
-        <div className="mt-6 text-center text-sm">
-          <p className="text-gray-600">
-            Don't have an account?{' '}
-            <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-              Get started for free
-            </a>
-          </p>
+        {/* Toggle mode */}
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => { setMode(m => m === 'signin' ? 'signup' : 'signin'); setError(null); setInfo(null); }}
+            style={{ fontSize: '8px', color: '#555', textDecoration: 'underline' }}
+          >
+            {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+          </button>
         </div>
       </div>
     </div>
