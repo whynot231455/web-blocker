@@ -1,0 +1,25 @@
+node_modules
+
+# Environment variables — NEVER commit these
+.env
+.env.local
+.env.development
+.env.production
+.env*.local
+
+# Extension secrets config
+extension/lib/config.ts
+
+# Next.js
+.next/
+out/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*

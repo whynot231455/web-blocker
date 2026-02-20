@@ -1,0 +1,18 @@
+{
+  "name": "web-blocker-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "website",
+    "extension",
+    "shared"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w website",
+    "build:web": "npm run build -w website",
+    "lint:web": "npm run lint -w website"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.36"
+  }
+}
