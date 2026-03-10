@@ -5,8 +5,35 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { User, Mail, Shield, Award } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
 
 export default function AccountPage() {
+  const { user, loading, signOut } = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/login');
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-gray-50 items-center justify-center">
+        <div className="text-xl font-mono animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
+  // Get user info from metadata or default to user email/placeholder
+  const displayName = user?.user_metadata?.first_name 
+    ? `${user.user_metadata.first_name}` 
+    : user?.email?.split('@')[0] || 'User';
+  
+  const userInitial = displayName.charAt(0).toUpperCase();
+  const fullName = user?.user_metadata?.full_name || displayName;
+  const email = user?.email || 'N/A';
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
@@ -22,11 +49,18 @@ export default function AccountPage() {
             <div className="lg:col-span-1 space-y-6">
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm text-center">
                 <div className="h-24 w-24 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border-4 border-white shadow-md mx-auto mb-4 text-3xl">
-                  S
+                  {userInitial}
                 </div>
-                <h3 className="text-lg font-bold text-gray-900">Shibu</h3>
+                <h3 className="text-lg font-bold text-gray-900">{displayName}</h3>
                 <p className="text-sm text-gray-500">Free Account</p>
                 <Button className="w-full mt-6" variant="primary">Edit Profile</Button>
+                <Button 
+                  className="w-full mt-2" 
+                  variant="danger"
+                  onClick={handleSignOut}
+                >
+                  Sign out
+                </Button>
               </div>
 
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -53,11 +87,11 @@ export default function AccountPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-xs font-semibold text-gray-400 uppercase mb-1">Full Name</label>
-                    <p className="text-gray-900 font-medium pb-2 border-b">Shibu User</p>
+                    <p className="text-gray-900 font-medium pb-2 border-b">{fullName}</p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-400 uppercase mb-1">Email Address</label>
-                    <p className="text-gray-900 font-medium pb-2 border-b">shibu@example.com</p>
+                    <p className="text-gray-900 font-medium pb-2 border-b">{email}</p>
                   </div>
                 </div>
               </div>

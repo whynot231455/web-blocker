@@ -23,7 +23,6 @@ export default function LandingPage() {
         <div className="hidden md:flex items-center gap-8 text-[10px] font-bold uppercase tracking-widest">
           <a href="#features" className="hover:underline">Features</a>
           <a href="#how-it-works" className="hover:underline">How it Works</a>
-          <a href="#pricing" className="hover:underline">Pricing</a>
         </div>
         <div className="flex items-center gap-4">
           <Link href="/login">
@@ -31,7 +30,7 @@ export default function LandingPage() {
           </Link>
           <Link href="/dashboard">
             <button className="text-[10px] font-bold uppercase tracking-widest bg-black text-white px-6 py-3 border-2 border-black shadow-[4px_4px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
-              Get Started
+              Dashboard
             </button>
           </Link>
         </div>
@@ -41,10 +40,6 @@ export default function LandingPage() {
       <section className="relative pt-24 pb-32 border-b-2 border-black overflow-hidden bg-white">
         <div className="max-w-7xl mx-auto px-8 relative z-10">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-3 px-4 py-2 border-2 border-black bg-white mb-8 animate-pulse shadow-[4px_4px_0px_#000]">
-              <Zap size={14} />
-              <span className="text-[8px] font-bold uppercase">NEW: SUPABASE SYNC NOW LIVE</span>
-            </div>
             <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight leading-tight mb-8">
               Reclaim your focus. <br />
               <span className="bg-black text-white px-4 py-2 inline-block mt-2">
@@ -114,12 +109,12 @@ export default function LandingPage() {
             <span className="text-sm font-black uppercase tracking-widest">CTRL + BLCK</span>
           </div>
           <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest text-center">
-            &copy; 2026 CTRL + BLCK. Built with Next.js & Supabase.
+            &copy; 2026 CTRL + BLCK.
           </p>
           <div className="flex gap-8 text-[8px] font-bold uppercase tracking-widest text-gray-500">
             <a href="#" className="hover:text-black transition-colors">Privacy</a>
             <a href="#" className="hover:text-black transition-colors">Terms</a>
-            <a href="#" className="hover:text-black transition-colors">Github</a>
+            <a href="https://github.com/whynot231455/web-blocker" className="hover:text-black transition-colors">Github</a>
           </div>
         </div>
       </footer>
