@@ -15,18 +15,34 @@ function validatePassword(password: string): string | null {
 
 export const useAuth = () => {
     const [user, setUser] = useState<User | null>(null);
+    const [isGuest, setIsGuest] = useState<boolean>(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // Initialize guest state from localStorage
+        const guestFlag = localStorage.getItem('ctrl_blck_guest');
+        if (guestFlag === 'true') {
+            setIsGuest(true);
+        }
+
         const checkUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             setUser(session?.user ?? null);
+            // If we have a real user, we're not a guest
+            if (session?.user) {
+                setIsGuest(false);
+                localStorage.removeItem('ctrl_blck_guest');
+            }
             setLoading(false);
         };
         checkUser();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setUser(session?.user ?? null);
+            if (session?.user) {
+                setIsGuest(false);
+                localStorage.removeItem('ctrl_blck_guest');
+            }
             setLoading(false);
         });
 
@@ -60,6 +76,13 @@ export const useAuth = () => {
 
     const signOut = async (): Promise<void> => {
         await supabase.auth.signOut();
+        setIsGuest(false);
+        localStorage.removeItem('ctrl_blck_guest');
+    };
+
+    const continueAsGuest = () => {
+        setIsGuest(true);
+        localStorage.setItem('ctrl_blck_guest', 'true');
     };
 
     const signInWithGoogle = async (): Promise<{ error: AuthError | null }> => {
@@ -82,5 +105,5 @@ export const useAuth = () => {
         return { error };
     };
 
-    return { user, loading, signIn, signUp, signOut, signInWithGoogle, signInWithGithub };
+    return { user, isGuest, loading, signIn, signUp, signOut, continueAsGuest, signInWithGoogle, signInWithGithub };
 };

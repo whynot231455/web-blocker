@@ -70,11 +70,52 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initialize the popup
     initializePopup(isConfirmationScreen);
+    updateSyncStatus();
 });
+
+async function updateSyncStatus() {
+    const { supabase_session, isGuest } = await chrome.storage.local.get(['supabase_session', 'isGuest']);
+    const subHeading = document.querySelector('.sub_heading');
+    if (subHeading) {
+        // Clear existing sync-status if any
+        const existingStatus = subHeading.querySelector('.sync-status');
+        if (existingStatus) existingStatus.remove();
+
+        const statusDiv = document.createElement('div');
+        statusDiv.className = 'sync-status';
+        statusDiv.style.fontSize = '8px';
+        statusDiv.style.marginTop = '8px';
+
+        if (supabase_session) {
+            statusDiv.style.color = '#4CAF50';
+            statusDiv.textContent = '● Synced with Dashboard';
+        } else if (isGuest) {
+            statusDiv.className = 'sync-status guest-mode';
+            statusDiv.style.color = '#777';
+            statusDiv.textContent = '● Guest Mode (Local Storage)';
+        } else {
+            // This case shouldn't happen much because of the redirect, 
+            // but helpful for debugging or transient states
+            statusDiv.style.color = '#f44336';
+            statusDiv.textContent = '● Not Synchronized';
+        }
+        subHeading.appendChild(statusDiv);
+    }
+}
 
 async function initializePopup(isConfirmationScreen) {
     try {
         if (!isConfirmationScreen) {
+            // Check authentication / guest status first
+            const { supabase_session, isGuest } = await chrome.storage.local.get(['supabase_session', 'isGuest']);
+            
+            if (!supabase_session && !isGuest) {
+                // Redirect to website if not logged in and not a guest
+                chrome.tabs.create({ url: 'http://localhost:3000/login' });
+                window.close();
+                return;
+            }
+
             // Check current tab and set up popup accordingly
             const currentTabURL = await getCurrentTabURL();
 
@@ -218,6 +259,7 @@ async function loadURL() {
                 emptyLi.style.textAlign = 'center';
                 emptyLi.style.color = '#999';
                 emptyLi.style.padding = '10px';
+                emptyLi.style.fontSize = '11px';
                 list_table.appendChild(emptyLi);
                 return;
             }
@@ -227,29 +269,29 @@ async function loadURL() {
 
                 if (hostname) { // Only create list item if hostname is valid
                     const li = document.createElement('li');
+                    li.setAttribute('data-hostname', hostname); // Store original hostname for deletion
                     li.style.display = 'flex';
                     li.style.alignItems = 'center';
-                    li.style.gap = '10px';
+                    li.style.gap = '15px';
 
                     const favicon = document.createElement('img');
-                    favicon.src = `https://www.google.com/s2/favicons?domain=${hostname}`;
-                    favicon.width = 16;
-                    favicon.height = 16;
+                    favicon.src = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+                    favicon.width = 24;
+                    favicon.height = 24;
 
                     favicon.addEventListener('error', function () {
-                        this.src = "/icons/default-site-icon.svg";
+                        this.src = "../assets/icons/delete-icon.svg"; // Fallback to delete icon if favicon fails, or I could use a default one
                     });
 
                     const span = document.createElement('span');
-                    span.textContent = hostname;
+                    span.textContent = hostname.startsWith('www.') ? hostname : 'www.' + hostname;
 
                     const close_icon = document.createElement('img');
-                    close_icon.src = "/icons/delete-icon.svg";
+                    close_icon.src = "../assets/icons/delete-icon.svg";
                     close_icon.className = 'delete-icon';
-                    close_icon.width = 16;
-                    close_icon.height = 16;
+                    close_icon.width = 24;
+                    close_icon.height = 24;
                     close_icon.style.cursor = 'pointer';
-
 
                     li.appendChild(favicon);
                     li.appendChild(span);
@@ -299,6 +341,9 @@ async function add_elements() {
 
             // Save updated URLs
             await chrome.storage.local.set({ urls: updatedURLs });
+
+            // Sync with Supabase if authenticated
+            chrome.runtime.sendMessage({ action: 'addSiteToSupabase', url: currentTabURL });
 
             // Show confirmation screen
             showConfirmationScreen(currentHostname);
@@ -353,7 +398,7 @@ function showConfirmationScreen(hostname) {
         const faviconImg = confirmationScreen.querySelector('.favicon-image');
         if (faviconImg) {
             faviconImg.addEventListener('error', function () {
-                this.src = '/icons/default-site-icon.svg';
+                this.src = '../assets/icons/delete-icon.svg';
             });
         }
 
@@ -383,7 +428,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const listItem = event.target.closest('li');
                 if (!listItem) return;
 
-                const hostname = listItem.querySelector('span')?.textContent;
+                const hostname = listItem.getAttribute('data-hostname');
                 if (!hostname) return;
 
                 // Remove from DOM
@@ -393,6 +438,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 const urls = await getURLs();
                 const updatedURLs = urls.filter(url => extractHostname(url) !== hostname);
                 await chrome.storage.local.set({ urls: updatedURLs });
+
+                // Sync with Supabase if authenticated
+                chrome.runtime.sendMessage({ action: 'deleteSiteFromSupabase', url: hostname });
             } catch (error) {
                 console.error('Error deleting URL:', error);
             }
@@ -413,6 +461,7 @@ async function removeAll_elements() {
             emptyLi.style.textAlign = 'center';
             emptyLi.style.color = '#999';
             emptyLi.style.padding = '10px';
+            emptyLi.style.fontSize = '11px';
             list_table.appendChild(emptyLi);
         }
     } catch (error) {

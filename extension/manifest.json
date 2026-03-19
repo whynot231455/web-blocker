@@ -15,7 +15,9 @@
     "tabs"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "http://localhost:3000/*",
+    "https://laovgvktsxwiieuznnlm.supabase.co/*"
   ],
   "action": {
     "default_icon": {
@@ -39,6 +41,15 @@
         "content/content.js"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "http://localhost:3000/*"
+      ],
+      "js": [
+        "content/dashboard-sync.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [

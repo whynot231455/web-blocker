@@ -8,9 +8,10 @@ interface UrlListProps {
   isLoading: boolean;
   onDelete: (id: string) => void;
   onToggle: (id: string, currentStatus: boolean) => void;
+  onOpenAddModal?: () => void;
 }
 
-export const UrlList: React.FC<UrlListProps> = ({ sites, isLoading, onDelete, onToggle }) => {
+export const UrlList: React.FC<UrlListProps> = ({ sites, isLoading, onDelete, onToggle, onOpenAddModal }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
 
   const filteredSites = sites.filter(site =>
@@ -19,7 +20,7 @@ export const UrlList: React.FC<UrlListProps> = ({ sites, isLoading, onDelete, on
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      {/* Header row: "URL LIST:" + search bar */}
+      {/* Header row: "URL LIST:" + search bar + "ADD SITE +" button */}
       <div className="flex items-center gap-5 mb-6">
         <span style={{ fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap', letterSpacing: '0.05em' }}>
           URL LIST:
@@ -28,17 +29,25 @@ export const UrlList: React.FC<UrlListProps> = ({ sites, isLoading, onDelete, on
           <Search
             size={13}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            strokeWidth={2.5}
+            strokeWidth={3}
           />
           <input
             type="text"
-            placeholder="Search Website / Add Website"
+            placeholder="search to find distraction"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ fontSize: '10px' }}
-            className="w-full pl-8 pr-3 py-3 bg-gray-100 rounded-lg border-none focus:outline-none text-gray-500 placeholder:text-gray-400"
+            className="w-full pl-9 pr-4 py-2 bg-gray-50 border-none rounded-md text-[10px] font-bold uppercase tracking-wider focus:ring-1 focus:ring-black transition-all placeholder:text-gray-300"
           />
         </div>
+        {onOpenAddModal && (
+          <button
+            onClick={onOpenAddModal}
+            className="text-[9px] font-bold text-gray-400 hover:text-black transition-colors uppercase tracking-[0.1em] px-2 py-1 rounded hover:bg-gray-100 whitespace-nowrap shrink-0"
+            title="Add new website to block"
+          >
+            + ADD SITE
+          </button>
+        )}
       </div>
 
       {/* Items */}

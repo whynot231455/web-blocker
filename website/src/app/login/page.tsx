@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
-  const { signInWithGoogle, signInWithGithub } = useAuth();
+  const { signInWithGoogle, signInWithGithub, continueAsGuest } = useAuth();
   const router = useRouter();
 
   const handleGoogleSignIn = async () => {
@@ -31,6 +31,11 @@ export default function LoginPage() {
       setError(error.message);
       setIsLoading(false);
     }
+  };
+
+  const handleGuestContinue = () => {
+    continueAsGuest();
+    router.push('/dashboard');
   };
 
 
@@ -94,6 +99,21 @@ export default function LoginPage() {
           >
             <Github size={18} />
             GITHUB
+          </button>
+
+          <div className="flex items-center gap-4 py-2">
+            <div className="flex-1 h-[2px] bg-gray-200"></div>
+            <span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">OR</span>
+            <div className="flex-1 h-[2px] bg-gray-200"></div>
+          </div>
+
+          <button
+            onClick={handleGuestContinue}
+            disabled={isLoading}
+            className="w-full py-4 bg-black text-white border-2 border-black hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-3"
+            style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.1em', boxShadow: '4px 4px 0px #000' }}
+          >
+            CONTINUE AS GUEST
           </button>
         </div>
 
