@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { User, AuthError } from '@supabase/supabase-js';
+import { SYNC_STORAGE_KEYS } from '@/config/sync';
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -15,25 +16,31 @@ function validatePassword(password: string): string | null {
 
 export const useAuth = () => {
     const [user, setUser] = useState<User | null>(null);
-    const [isGuest, setIsGuest] = useState<boolean>(false);
+    const [isGuest, setIsGuest] = useState<boolean>(() => {
+        if (typeof window === 'undefined') return false;
+        return localStorage.getItem(SYNC_STORAGE_KEYS.guestFlag) === 'true';
+    });
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        // Initialize guest state from localStorage
-        const guestFlag = localStorage.getItem('ctrl_blck_guest');
-        if (guestFlag === 'true') {
-            setIsGuest(true);
-        }
+    const notifyExtensionSync = () => {
+        if (typeof window === 'undefined') return;
+        // Defer one tick so Supabase/localStorage updates settle before the bridge reads them.
+        window.setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
+        }, 0);
+    };
 
+    useEffect(() => {
         const checkUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             setUser(session?.user ?? null);
             // If we have a real user, we're not a guest
             if (session?.user) {
                 setIsGuest(false);
-                localStorage.removeItem('ctrl_blck_guest');
+                localStorage.removeItem(SYNC_STORAGE_KEYS.guestFlag);
             }
             setLoading(false);
+            notifyExtensionSync();
         };
         checkUser();
 
@@ -41,9 +48,10 @@ export const useAuth = () => {
             setUser(session?.user ?? null);
             if (session?.user) {
                 setIsGuest(false);
-                localStorage.removeItem('ctrl_blck_guest');
+                localStorage.removeItem(SYNC_STORAGE_KEYS.guestFlag);
             }
             setLoading(false);
+            notifyExtensionSync();
         });
 
         return () => subscription.unsubscribe();
@@ -54,13 +62,14 @@ export const useAuth = () => {
         password: string
     ): Promise<{ error: AuthError | null }> => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (!error) notifyExtensionSync();
         return { error };
     };
 
     const signUp = async (
         email: string,
         password: string,
-        options?: { data?: Record<string, any> }
+        options?: { data?: Record<string, unknown> }
     ): Promise<{ data: User | null; error: AuthError | Error | null }> => {
         const passwordError = validatePassword(password);
         if (passwordError) {
@@ -77,12 +86,15 @@ export const useAuth = () => {
     const signOut = async (): Promise<void> => {
         await supabase.auth.signOut();
         setIsGuest(false);
-        localStorage.removeItem('ctrl_blck_guest');
+        localStorage.removeItem(SYNC_STORAGE_KEYS.guestFlag);
+        localStorage.removeItem(SYNC_STORAGE_KEYS.guestSites);
+        notifyExtensionSync();
     };
 
     const continueAsGuest = () => {
         setIsGuest(true);
-        localStorage.setItem('ctrl_blck_guest', 'true');
+        localStorage.setItem(SYNC_STORAGE_KEYS.guestFlag, 'true');
+        notifyExtensionSync();
     };
 
     const signInWithGoogle = async (): Promise<{ error: AuthError | null }> => {

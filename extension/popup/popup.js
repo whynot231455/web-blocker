@@ -1,29 +1,14 @@
+const syncConfig = globalThis.CTRL_BLCK_SYNC;
+const storageKeys = syncConfig.storageKeys;
+const messageActions = syncConfig.messageActions;
+
+/** @param {string} url */
 function extractHostname(url) {
-    try {
-        // Handle null or undefined
-        if (!url || typeof url !== 'string') {
-            return null;
-        }
-
-        // Clean up the URL
-        let cleanUrl = url.trim();
-
-        // If it's already a full URL, extract hostname
-        if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
-            const urlObj = new URL(cleanUrl);
-            return urlObj.hostname.toLowerCase();
-        } else {
-            // If it's just a domain name, return as-is (after cleaning)
-            return cleanUrl.split('/')[0].toLowerCase();
-        }
-    } catch (error) {
-        console.warn('Could not parse URL:', url, error);
-        // Return null instead of the original string to indicate failure
-        return null;
-    }
+    return syncConfig.normalizeHostname(url);
 }
 
 // Check if URL is an internal browser page
+/** @param {string} url */
 function isInternalPage(url) {
     if (!url) return true;
 
@@ -38,6 +23,7 @@ function isInternalPage(url) {
 }
 
 // Get internal page type for user-friendly message
+/** @param {string} url */
 function getInternalPageType(url) {
     if (!url) return 'unknown page';
 
@@ -53,9 +39,32 @@ function getInternalPageType(url) {
     return 'internal browser page';
 }
 
+const defaultDashboardOrigin = syncConfig.defaultDashboardOrigin;
+const dashboardPaths = syncConfig.dashboardPaths;
+
 // Global variables
-let add_button, list_table, clear_button, reloadButton;
-let storageUpdateTimeout;
+/** @type {HTMLElement | null} */
+let add_button;
+/** @type {HTMLElement | null} */
+let list_table;
+/** @type {HTMLElement | null} */
+let clear_button;
+/** @type {HTMLElement | null} */
+let reloadButton;
+/** @type {HTMLAnchorElement | null} */
+let dashboardLink;
+/** @type {number | null | ReturnType<typeof setTimeout>} */
+let storageUpdateTimeout = null;
+/** @type {number | null | ReturnType<typeof setInterval>} */
+let timerInterval = null;
+
+// DOM Elements for timer
+/** @type {HTMLElement | null} */
+let sessionContainer = null;
+/** @type {HTMLElement | null} */
+let sessionUrlEl = null;
+/** @type {HTMLElement | null} */
+let sessionTimerEl = null;
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function () {
@@ -64,17 +73,59 @@ document.addEventListener('DOMContentLoaded', function () {
     list_table = document.querySelector('.list_table');
     clear_button = document.querySelector('.clear_button');
     reloadButton = document.querySelector('.reload_button');
+    dashboardLink = document.querySelector('#dashboardLink');
+    sessionContainer = document.querySelector('#active-session-container');
+    sessionUrlEl = document.querySelector('#active-session-url');
+    sessionTimerEl = document.querySelector('#active-session-timer');
 
     // Check if we're on the confirmation screen
-    const isConfirmationScreen = document.querySelector('.confirmation-screen');
+    const isConfirmationScreen = !!document.querySelector('.confirmation-screen');
 
     // Initialize the popup
-    initializePopup(isConfirmationScreen);
-    updateSyncStatus();
+    void initializePopup(isConfirmationScreen);
+    void updateSyncStatus();
+    void startTimerLoop();
+
+    // Event listener for delete functionality
+    document.addEventListener("click", async function (event) {
+        const target = /** @type {HTMLElement} */ (event.target);
+        if (target && target.classList.contains('delete-icon')) {
+            try {
+                const listItem = target.closest('li');
+                if (!listItem) return;
+
+                const hostname = listItem.getAttribute('data-hostname');
+                if (!hostname) return;
+
+                // Remove from DOM
+                listItem.remove();
+
+                // Remove from storage - compare by hostname
+                const urls = await getURLs();
+                const updatedURLs = urls.filter((/** @type {string} */ url) => syncConfig.normalizeHostname(url) !== hostname);
+                await chrome.storage.local.set({ [storageKeys.blockedSites]: updatedURLs });
+
+                // Notify website to sync display
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    if (tabs[0]?.id) {
+                        chrome.tabs.sendMessage(tabs[0].id, { action: messageActions.triggerSync });
+                    }
+                });
+
+                // Sync with Supabase if authenticated
+                chrome.runtime.sendMessage({ action: messageActions.deleteSiteFromSupabase, url: hostname });
+            } catch (error) {
+                console.error('Error deleting URL:', error);
+            }
+        }
+    });
 });
 
 async function updateSyncStatus() {
-    const { supabase_session, isGuest } = await chrome.storage.local.get(['supabase_session', 'isGuest']);
+    const { [storageKeys.supabaseSession]: supabaseSession, isGuest } = await chrome.storage.local.get([
+        storageKeys.supabaseSession,
+        'isGuest'
+    ]);
     const subHeading = document.querySelector('.sub_heading');
     if (subHeading) {
         // Clear existing sync-status if any
@@ -86,7 +137,7 @@ async function updateSyncStatus() {
         statusDiv.style.fontSize = '8px';
         statusDiv.style.marginTop = '8px';
 
-        if (supabase_session) {
+        if (supabaseSession) {
             statusDiv.style.color = '#4CAF50';
             statusDiv.textContent = '● Synced with Dashboard';
         } else if (isGuest) {
@@ -94,8 +145,6 @@ async function updateSyncStatus() {
             statusDiv.style.color = '#777';
             statusDiv.textContent = '● Guest Mode (Local Storage)';
         } else {
-            // This case shouldn't happen much because of the redirect, 
-            // but helpful for debugging or transient states
             statusDiv.style.color = '#f44336';
             statusDiv.textContent = '● Not Synchronized';
         }
@@ -103,53 +152,72 @@ async function updateSyncStatus() {
     }
 }
 
+async function getDashboardOrigin() {
+    try {
+        const { [storageKeys.dashboardOrigin]: storedOrigin } = await chrome.storage.local.get(storageKeys.dashboardOrigin);
+        return typeof storedOrigin === 'string' && storedOrigin ? storedOrigin : defaultDashboardOrigin;
+    } catch (error) {
+        console.error('Error getting dashboard origin:', error);
+        return defaultDashboardOrigin;
+    }
+}
+
+/** @param {string} path */
+async function buildDashboardUrl(path) {
+    const origin = await getDashboardOrigin();
+    return new URL(path, origin).toString();
+}
+
+async function configureDashboardLink() {
+    if (!dashboardLink) {
+        return;
+    }
+
+    const { [storageKeys.supabaseSession]: supabaseSession, isGuest } = await chrome.storage.local.get([
+        storageKeys.supabaseSession,
+        'isGuest'
+    ]);
+    const destinationPath = supabaseSession || isGuest ? dashboardPaths.dashboard : dashboardPaths.login;
+    const destinationUrl = await buildDashboardUrl(destinationPath);
+
+    dashboardLink.href = destinationUrl;
+    dashboardLink.addEventListener('click', async function (event) {
+        event.preventDefault();
+        await chrome.tabs.create({ url: destinationUrl });
+        window.close();
+    });
+}
+
+/** @param {boolean} isConfirmationScreen */
 async function initializePopup(isConfirmationScreen) {
     try {
+        await configureDashboardLink();
+
         if (!isConfirmationScreen) {
-            // Check authentication / guest status first
-            const { supabase_session, isGuest } = await chrome.storage.local.get(['supabase_session', 'isGuest']);
+            const { [storageKeys.supabaseSession]: supabaseSession, isGuest } = await chrome.storage.local.get([
+                storageKeys.supabaseSession,
+                'isGuest'
+            ]);
             
-            if (!supabase_session && !isGuest) {
-                // Redirect to website if not logged in and not a guest
-                chrome.tabs.create({ url: 'http://localhost:3000/login' });
+            if (!supabaseSession && !isGuest) {
+                const loginUrl = await buildDashboardUrl(dashboardPaths.login);
+                await chrome.tabs.create({ url: loginUrl });
                 window.close();
                 return;
             }
 
-            // Check current tab and set up popup accordingly
             const currentTabURL = await getCurrentTabURL();
 
-            if (isInternalPage(currentTabURL)) {
-                // Show internal page message instead of normal functionality
+            if (currentTabURL && isInternalPage(currentTabURL)) {
                 showInternalPageMessage(currentTabURL);
-            } else {
-                // Normal popup functionality
+            } else if (currentTabURL) {
                 if (add_button) {
                     add_button.addEventListener("click", add_elements);
-                } else {
-                    console.warn('Add button not found');
                 }
-
                 if (clear_button) {
                     clear_button.addEventListener("click", removeAll_elements);
-                } else {
-                    console.warn('Clear button not found');
                 }
-
-                // Load URLs regardless of button availability
                 loadURL();
-            }
-        } else {
-            // Confirmation screen functionality
-            if (reloadButton) {
-                reloadButton.addEventListener("click", function () {
-                    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-                        if (tabs && tabs[0]) {
-                            chrome.tabs.reload(tabs[0].id);
-                            window.close();
-                        }
-                    });
-                });
             }
         }
     } catch (error) {
@@ -157,21 +225,20 @@ async function initializePopup(isConfirmationScreen) {
     }
 }
 
+/** @param {string | null} url */
 function showInternalPageMessage(url) {
-    const pageType = getInternalPageType(url);
+    const pageType = getInternalPageType(url || '');
     const popup = document.querySelector('.popup');
 
     if (popup) {
-        // Hide ALL popup content sections
-        const header = document.querySelector('.header');
-        const tagline = document.querySelector('.tagline');
-        const currentSite = document.querySelector('.current-site');
-        const urlListSection = document.querySelector('.url-list-section');
-        const addButton = document.querySelector('.add_button');
-        const clearButton = document.querySelector('.clear_button');
-        const urlList = document.querySelector('#urlList, .list_table');
+        const header = /** @type {HTMLElement | null} */ (document.querySelector('.header'));
+        const tagline = /** @type {HTMLElement | null} */ (document.querySelector('.tagline'));
+        const currentSite = /** @type {HTMLElement | null} */ (document.querySelector('.current-site'));
+        const urlListSection = /** @type {HTMLElement | null} */ (document.querySelector('.url-list-section'));
+        const addButton = /** @type {HTMLElement | null} */ (document.querySelector('.add_button'));
+        const clearButton = /** @type {HTMLElement | null} */ (document.querySelector('.clear_button'));
+        const urlList = /** @type {HTMLElement | null} */ (document.querySelector('#urlList, .list_table'));
 
-        // Hide all sections
         if (header) header.style.display = 'none';
         if (tagline) tagline.style.display = 'none';
         if (currentSite) currentSite.style.display = 'none';
@@ -180,49 +247,52 @@ function showInternalPageMessage(url) {
         if (clearButton) clearButton.style.display = 'none';
         if (urlList) urlList.style.display = 'none';
 
-        // Create internal page message as the ONLY content
         const messageDiv = document.createElement('div');
         messageDiv.className = 'internal-page-message';
 
-        messageDiv.innerHTML = `
-            <div class="message-icon">🚫</div>
-            <h3>Cannot Block This Page</h3>
-            <p>This is a <strong>${pageType}</strong> and cannot be blocked for security reasons.</p>
-            <p class="message-hint">Try navigating to a regular website to use CTRL+BLCK.</p>
-            <button class="edit-url-button">Edit URL List</button>
-        `;
+        const iconDiv = document.createElement('div');
+        iconDiv.className = 'message-icon';
+        iconDiv.textContent = '🚫';
+        messageDiv.appendChild(iconDiv);
 
-        // Clear popup content and add only the message
+        const title = document.createElement('h3');
+        title.textContent = 'Cannot Block This Page';
+        messageDiv.appendChild(title);
+
+        const p1 = document.createElement('p');
+        p1.textContent = 'This is a ';
+        const strong = document.createElement('strong');
+        strong.textContent = pageType;
+        p1.appendChild(strong);
+        p1.appendChild(document.createTextNode(' and cannot be blocked for security reasons.'));
+        messageDiv.appendChild(p1);
+
+        const p2 = document.createElement('p');
+        p2.className = 'message-hint';
+        p2.textContent = 'Try navigating to a regular website to use CTRL+BLCK.';
+        messageDiv.appendChild(p2);
+
+        const editButton = document.createElement('button');
+        editButton.className = 'edit-url-button';
+        editButton.textContent = 'Edit URL List';
+        editButton.addEventListener('click', function () {
+            chrome.tabs.create({ url: chrome.runtime.getURL('main.html') });
+            window.close();
+        });
+        messageDiv.appendChild(editButton);
+
         popup.innerHTML = '';
         popup.appendChild(messageDiv);
 
-        // Add event listener for the Edit URL List button
-        const editButton = messageDiv.querySelector('.edit-url-button');
-        if (editButton) {
-            editButton.addEventListener('click', function () {
-                // Open main.html in a new tab
-                chrome.tabs.create({ url: chrome.runtime.getURL('main.html') });
-                // Close the popup
-                window.close();
-            });
-        }
-
-        // Set popup to size that accommodates the button
         document.body.style.width = '300px';
         document.body.style.height = '250px';
     }
 }
 
-
 async function getCurrentTabURL() {
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-        // Check if tab and tab.url exist
-        if (!tab || !tab.url) {
-            return null;
-        }
-
+        if (!tab || !tab.url) return null;
         return tab.url;
     } catch (error) {
         console.error('Error getting current tab URL:', error);
@@ -232,8 +302,8 @@ async function getCurrentTabURL() {
 
 async function getURLs() {
     try {
-        const results = await chrome.storage.local.get('urls');
-        const urls = results.urls;
+        const results = await chrome.storage.local.get(storageKeys.blockedSites);
+        const urls = /** @type {any} */ (results[storageKeys.blockedSites]);
         return urls || [];
     } catch (error) {
         console.error('Error getting URLs from storage:', error);
@@ -244,15 +314,11 @@ async function getURLs() {
 async function loadURL() {
     try {
         const urls = await getURLs();
-
         if (urls && Array.isArray(urls) && list_table) {
-            // Clear existing list first
             list_table.innerHTML = "";
-
             const limitedURLs = urls.slice(0, 5);
 
             if (limitedURLs.length === 0) {
-                // Show empty state
                 const emptyLi = document.createElement('li');
                 emptyLi.className = 'empty-state';
                 emptyLi.textContent = 'No blocked sites yet';
@@ -266,10 +332,9 @@ async function loadURL() {
 
             limitedURLs.forEach(url => {
                 const hostname = extractHostname(url);
-
-                if (hostname) { // Only create list item if hostname is valid
+                if (hostname && list_table) {
                     const li = document.createElement('li');
-                    li.setAttribute('data-hostname', hostname); // Store original hostname for deletion
+                    li.setAttribute('data-hostname', hostname);
                     li.style.display = 'flex';
                     li.style.alignItems = 'center';
                     li.style.gap = '15px';
@@ -278,13 +343,13 @@ async function loadURL() {
                     favicon.src = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
                     favicon.width = 24;
                     favicon.height = 24;
-
                     favicon.addEventListener('error', function () {
-                        this.src = "../assets/icons/delete-icon.svg"; // Fallback to delete icon if favicon fails, or I could use a default one
+                        /** @type {any} */ (this).src = "../assets/icons/delete-icon.svg";
                     });
 
                     const span = document.createElement('span');
-                    span.textContent = hostname.startsWith('www.') ? hostname : 'www.' + hostname;
+                    const dotCount = (hostname.match(/\./g) || []).length;
+                    span.textContent = (hostname.startsWith('www.') || dotCount > 1) ? hostname : 'www.' + hostname;
 
                     const close_icon = document.createElement('img');
                     close_icon.src = "../assets/icons/delete-icon.svg";
@@ -296,7 +361,6 @@ async function loadURL() {
                     li.appendChild(favicon);
                     li.appendChild(span);
                     li.appendChild(close_icon);
-
                     list_table.appendChild(li);
                 }
             });
@@ -309,27 +373,24 @@ async function loadURL() {
 async function add_elements() {
     try {
         const currentTabURL = await getCurrentTabURL();
-
         if (!currentTabURL || isInternalPage(currentTabURL)) {
-            const pageType = getInternalPageType(currentTabURL);
+            const pageType = getInternalPageType(currentTabURL || '');
             alert(`Cannot block this page.\n\nThis is a ${pageType} and cannot be blocked for security reasons.`);
             return;
         }
 
-        const results = await chrome.storage.local.get(['urls', 'hiddenUrls']);
-        const URL_list = results.urls || [];
-        const hidden_list = results.hiddenUrls || [];
+        const results = await chrome.storage.local.get([storageKeys.blockedSites, 'hiddenUrls']);
+        const URL_list = /** @type {string[]} */ (results[storageKeys.blockedSites] || []);
+        const hidden_list = /** @type {string[]} */ (results.hiddenUrls || []);
 
-        // Safely extract hostname
-        const currentHostname = extractHostname(currentTabURL);
-
+        const currentHostname = syncConfig.normalizeHostname(currentTabURL);
         if (!currentHostname) {
             alert('Could not determine website hostname');
             return;
         }
 
-        const storedHostnames = URL_list.map(url => extractHostname(url)).filter(h => h !== null);
-        const hiddenHostnames = hidden_list.map(url => extractHostname(url)).filter(h => h !== null);
+        const storedHostnames = URL_list.map(url => syncConfig.normalizeHostname(url)).filter(Boolean);
+        const hiddenHostnames = hidden_list.map(url => syncConfig.normalizeHostname(url)).filter(Boolean);
 
         if (hiddenHostnames.includes(currentHostname)) {
             alert(`${currentHostname} is already in your hidden list!`);
@@ -338,123 +399,116 @@ async function add_elements() {
 
         if (!storedHostnames.includes(currentHostname)) {
             const updatedURLs = [currentTabURL, ...URL_list];
+            await chrome.storage.local.set({ [storageKeys.blockedSites]: updatedURLs });
 
-            // Save updated URLs
-            await chrome.storage.local.set({ urls: updatedURLs });
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs[0]?.id) {
+                    chrome.tabs.sendMessage(tabs[0].id, { action: messageActions.triggerSync });
+                }
+            });
 
-            // Sync with Supabase if authenticated
-            chrome.runtime.sendMessage({ action: 'addSiteToSupabase', url: currentTabURL });
-
-            // Show confirmation screen
+            window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
+            chrome.runtime.sendMessage({ action: messageActions.addSiteToSupabase, url: currentTabURL });
             showConfirmationScreen(currentHostname);
         } else {
-            // Show message that site is already blocked
             alert(`${currentHostname} is already in your blocked list!`);
         }
     } catch (error) {
         console.error('Error adding element:', error);
-        alert('Could not add this website to the block list.\nError: ' + error.message);
+        alert('Could not add this website to the block list.\nError: ' + (/** @type {any} */ (error)).message);
     }
 }
 
+/** @param {string} hostname */
 function showConfirmationScreen(hostname) {
     try {
-        // Hide the normal popup content
-        const popup = document.querySelector('.popup');
+        const popup = /** @type {HTMLElement | null} */ (document.querySelector('.popup'));
         if (popup) popup.style.display = 'none';
 
-        // Set larger dimensions for confirmation screen
         document.body.style.width = '320px';
         document.body.style.height = '450px';
         document.body.style.padding = '0';
         document.body.style.margin = '0';
 
-        // Create and show confirmation screen
         const confirmationScreen = document.createElement('div');
         confirmationScreen.className = 'confirmation-screen';
 
-        confirmationScreen.innerHTML = `
-            <div class="confirmation-content">
-                <div class="website-info">
-                    <h2 class="blocked-url">${hostname}</h2>
-                    <div class="website-icon">
-                        <img src="https://www.google.com/s2/favicons?domain=${hostname}&sz=64" 
-                             alt="${hostname}" 
-                             class="favicon-image">
-                    </div>
-                </div>
-                
-                <div class="confirmation-message">
-                    <h3>please reload the website to block it.</h3>
-                </div>
-                
-                <button class="reload_button">RELOAD PAGE</button>
-            </div>
-        `;
+        const content = document.createElement('div');
+        content.className = 'confirmation-content';
 
+        const info = document.createElement('div');
+        info.className = 'website-info';
+        const h2 = document.createElement('h2');
+        h2.className = 'blocked-url';
+        h2.textContent = hostname;
+        info.appendChild(h2);
+        
+        const iconDiv = document.createElement('div');
+        iconDiv.className = 'website-icon';
+        const faviconImg = document.createElement('img');
+        faviconImg.className = 'favicon-image';
+        faviconImg.src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`;
+        faviconImg.alt = hostname;
+        faviconImg.addEventListener('error', function () {
+            /** @type {any} */ (this).src = '../assets/icons/delete-icon.svg';
+        });
+        iconDiv.appendChild(faviconImg);
+        info.appendChild(iconDiv);
+        content.appendChild(info);
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'confirmation-message';
+        const h3 = document.createElement('h3');
+        h3.textContent = 'please reload the website to block it.';
+        msgDiv.appendChild(h3);
+        content.appendChild(msgDiv);
+
+        const reloadBtn = document.createElement('button');
+        reloadBtn.className = 'reload_button';
+        reloadBtn.textContent = 'RELOAD PAGE';
+        reloadBtn.addEventListener('click', function () {
+            chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+                if (tabs && tabs[0] && typeof tabs[0].id === 'number') {
+                    chrome.tabs.reload(tabs[0].id);
+                    window.close();
+                }
+            });
+        });
+        content.appendChild(reloadBtn);
+
+        confirmationScreen.appendChild(content);
         document.body.appendChild(confirmationScreen);
-
-        // Add event listeners using JavaScript instead of inline handlers
-        const faviconImg = confirmationScreen.querySelector('.favicon-image');
-        if (faviconImg) {
-            faviconImg.addEventListener('error', function () {
-                this.src = '../assets/icons/delete-icon.svg';
-            });
-        }
-
-        // Add event listener to reload button
-        const reloadBtn = confirmationScreen.querySelector('.reload_button');
-        if (reloadBtn) {
-            reloadBtn.addEventListener('click', function () {
-                chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-                    if (tabs && tabs[0]) {
-                        chrome.tabs.reload(tabs[0].id);
-                        window.close();
-                    }
-                });
-            });
-        }
     } catch (error) {
         console.error('Error showing confirmation screen:', error);
     }
 }
 
-// Event listener for delete functionality
-document.addEventListener('DOMContentLoaded', function () {
-    // Use event delegation for dynamically created elements
-    document.addEventListener("click", async function (event) {
-        if (event.target.classList.contains('delete-icon')) {
-            try {
-                const listItem = event.target.closest('li');
-                if (!listItem) return;
-
-                const hostname = listItem.getAttribute('data-hostname');
-                if (!hostname) return;
-
-                // Remove from DOM
-                listItem.remove();
-
-                // Remove from storage - compare by hostname
-                const urls = await getURLs();
-                const updatedURLs = urls.filter(url => extractHostname(url) !== hostname);
-                await chrome.storage.local.set({ urls: updatedURLs });
-
-                // Sync with Supabase if authenticated
-                chrome.runtime.sendMessage({ action: 'deleteSiteFromSupabase', url: hostname });
-            } catch (error) {
-                console.error('Error deleting URL:', error);
-            }
-        }
-    });
-});
-
 async function removeAll_elements() {
     try {
-        await chrome.storage.local.set({ urls: [] });
+        const { [storageKeys.supabaseSession]: supabaseSession, isGuest } = await chrome.storage.local.get([
+            storageKeys.supabaseSession,
+            'isGuest'
+        ]);
+
+        if (supabaseSession && !isGuest) {
+            const response = await chrome.runtime.sendMessage({ action: messageActions.clearSitesFromSupabase });
+            if (response && response.success === false && response.error !== 'Not authenticated') {
+                throw new Error(response.error || 'Failed to clear dashboard sites');
+            }
+        }
+
+        await chrome.storage.local.set({ [storageKeys.blockedSites]: [] });
+
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0]?.id) {
+                chrome.tabs.sendMessage(tabs[0].id, { action: messageActions.triggerSync });
+            }
+        });
+
+        window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
+
         if (list_table) {
             list_table.innerHTML = "";
-
-            // Show empty state
             const emptyLi = document.createElement('li');
             emptyLi.className = 'empty-state';
             emptyLi.textContent = 'No blocked sites yet';
@@ -470,16 +524,52 @@ async function removeAll_elements() {
     }
 }
 
-// Listen for storage changes to update the list in real-time (with debouncing)
-chrome.storage.onChanged.addListener(function (changes, namespace) {
-    if (namespace === 'local' && changes.urls) {
-        // Debounce the update to prevent multiple rapid calls
-        if (storageUpdateTimeout) {
-            clearTimeout(storageUpdateTimeout);
-        }
-
+chrome.storage.onChanged.addListener(function (_changes, namespace) {
+    if (namespace === 'local' && (_changes[storageKeys.blockedSites] || _changes.isGuest || _changes.activeSession)) {
+        if (storageUpdateTimeout) clearTimeout(storageUpdateTimeout);
         storageUpdateTimeout = setTimeout(() => {
             loadURL();
-        }, 100); // Wait 100ms before updating
+            updateSyncStatus();
+        }, 100);
     }
 });
+
+async function startTimerLoop() {
+    await updateActiveSessionTimer();
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(updateActiveSessionTimer, 1000);
+}
+
+async function updateActiveSessionTimer() {
+    if (!sessionContainer || !sessionUrlEl || !sessionTimerEl) return;
+
+    /**
+     * @typedef {Object} FocusSession
+     * @property {string} url
+     * @property {string} start_time
+     * @property {number} target_duration
+     * @property {string} status
+     */
+
+    const data = await chrome.storage.local.get('activeSession');
+    const activeSession = /** @type {FocusSession | null} */ (data.activeSession);
+
+    if (activeSession && activeSession.status === 'active') {
+        const startTime = new Date(activeSession.start_time).getTime();
+        const durationMs = (activeSession.target_duration || 0) * 60 * 1000;
+        const expiryTime = startTime + durationMs;
+        const now = Date.now();
+        const timeLeft = expiryTime - now;
+
+        if (timeLeft > 0) {
+            sessionContainer.style.display = 'block';
+            sessionUrlEl.textContent = syncConfig.normalizeHostname(activeSession.url);
+            const totalSeconds = Math.floor(timeLeft / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            sessionTimerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            return;
+        }
+    }
+    sessionContainer.style.display = 'none';
+}

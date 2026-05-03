@@ -13,6 +13,8 @@
     "lint:web": "npm run lint -w website"
   },
   "devDependencies": {
-    "@types/chrome": "^0.1.36"
+    "@types/chrome": "^0.1.40",
+    "lightningcss": "^1.32.0",
+    "typescript": "^6.0.3"
   }
 }

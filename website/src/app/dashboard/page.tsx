@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { UrlList } from '@/components/dashboard/UrlList';
@@ -38,7 +38,7 @@ export default function DashboardPage() {
       {/* Main content — pushed right of sidebar */}
       <div
         className="flex flex-col flex-1 min-h-screen"
-        style={{ marginLeft: '60px' }}
+        style={{ marginLeft: '84px' }}
       >
         {/* Centered branding header */}
         <Header />

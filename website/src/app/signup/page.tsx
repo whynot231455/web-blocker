@@ -4,6 +4,7 @@ import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowLeft } from 'lucide-react';
 
 export default function SignUpPage() {
@@ -53,10 +54,13 @@ export default function SignUpPage() {
       >
         {/* Header */}
         <Link href="/" className="flex flex-col items-center mb-8 gap-3 hover:opacity-80 transition-opacity">
-          <img
+          <Image
             src="/icons/logopic1-48.png"
             alt="Logo"
+            width={48}
+            height={48}
             className="w-12 h-12"
+            unoptimized
           />
           <h1 style={{ fontSize: '14px', letterSpacing: '0.1em' }}>
             CTRL + BLCK

@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
+import { fileURLToPath } from "url";
+
+import path from "path";
+
+const websiteRoot = fileURLToPath(new URL(".", import.meta.url));
+const monorepoRoot = path.resolve(websiteRoot, "..");
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: monorepoRoot,
+  },
   async headers() {
     return [
       {
@@ -28,9 +37,11 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Content-Security-Policy',
+            // Note: 'unsafe-inline' is required for Next.js inline styles.
+            // For maximum security in production, consider using CSP nonces.
             value: `
               default-src 'self';
-              script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.supabase.co;
+              script-src 'self' 'unsafe-inline' https://*.supabase.co;
               style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
               font-src 'self' https://fonts.gstatic.com;
               img-src 'self' data: https://*.supabase.co https://www.google.com https://*.google.com https://*.gstatic.com https://icon.horse;

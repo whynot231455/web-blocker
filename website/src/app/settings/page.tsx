@@ -1,12 +1,32 @@
 'use client';
 
-import React from 'react';
+import { useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
 import { Shield, Bell, Moon, Sliders } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
+  const { user, isGuest, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  // Auth guard
+  useEffect(() => {
+    if (!authLoading && !user && !isGuest) {
+      router.push('/login');
+    }
+  }, [user, isGuest, authLoading, router]);
+
+  if (authLoading || (!user && !isGuest)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black" />
+      </div>
+    );
+  }
+
   const sections = [
     { title: 'Privacy & Security', icon: Shield, description: 'Manage your data and account security.' },
     { title: 'Notifications', icon: Bell, description: 'Configure how you want to be alerted.' },
@@ -17,7 +37,7 @@ export default function SettingsPage() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col" style={{ marginLeft: '84px' }}>
         <Header />
         <main className="p-8 max-w-7xl mx-auto w-full">
           <div className="mb-8">

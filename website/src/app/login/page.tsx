@@ -1,15 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Shield, Github, ArrowLeft } from 'lucide-react';
+import { Github, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-
+import Image from 'next/image';
 export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [info, setInfo] = React.useState<string | null>(null);
   const { signInWithGoogle, signInWithGithub, continueAsGuest } = useAuth();
   const router = useRouter();
 
@@ -50,10 +49,13 @@ export default function LoginPage() {
       >
         {/* Header */}
         <Link href="/" className="flex flex-col items-center mb-8 gap-3 hover:opacity-80 transition-opacity">
-          <img
+          <Image
             src="/icons/logopic1-48.png"
             alt="Logo"
+            width={48}
+            height={48}
             className="w-12 h-12"
+            unoptimized
           />
           <h1 style={{ fontSize: '14px', letterSpacing: '0.1em' }}>
             CTRL + BLCK
@@ -64,11 +66,6 @@ export default function LoginPage() {
         </Link>
 
         {/* Info / Error banners */}
-        {info && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-400 text-green-700" style={{ fontSize: '8px' }}>
-            {info}
-          </div>
-        )}
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-400 text-red-700" style={{ fontSize: '8px' }}>
             {error}

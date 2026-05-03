@@ -1,5 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 @import "tailwindcss";
+
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('./fonts/PressStart2P-Regular.ttf') format('truetype');
+  font-display: swap;
+}
 
 :root {
   --background: #ffffff;
@@ -19,4 +24,22 @@ body {
   color: black;
   margin: 0;
   padding: 0;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 12px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-left: 2px solid black;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: black;
+  border: 1px solid white;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #FF4141;
 }

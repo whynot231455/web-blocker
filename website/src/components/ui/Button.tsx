@@ -14,19 +14,19 @@ export const Button: React.FC<ButtonProps> = ({
   className = '',
   ...props
 }) => {
-  const baseStyles = 'rounded-md font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center';
+  const baseStyles = 'font-black uppercase tracking-widest transition-all focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center border-2 border-black shadow-[4px_4px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none';
   
   const sizes = {
-    sm: 'px-2 py-1 text-xs',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base',
+    sm: 'px-3 py-1.5 text-[8px]',
+    md: 'px-5 py-2.5 text-[10px]',
+    lg: 'px-8 py-4 text-[12px]',
   };
   
   const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
-    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-400',
-    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
-    ghost: 'bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-300',
+    primary: 'bg-blue-600 text-white hover:bg-blue-500',
+    secondary: 'bg-gray-200 text-black hover:bg-gray-300',
+    danger: 'bg-red-600 text-white hover:bg-red-500',
+    ghost: 'bg-white text-black hover:bg-gray-100',
   };
 
   return (
@@ -46,4 +46,4 @@ export const Button: React.FC<ButtonProps> = ({
   );
 };
 
-export default Button;
+

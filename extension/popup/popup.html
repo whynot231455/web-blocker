@@ -13,12 +13,18 @@
         <div class="upper-container">
             <img class="logo_pic" src="../assets/icons/logopic1-128.png" alt="Logo">
             <h1 class="title">CTRL+BLCK</h1>
-            <a href="http://localhost:3000/dashboard" target="_blank">
+            <a id="dashboardLink" href="#" target="_blank">
                 <img id="homeIcon" class="home" src="../assets/icons/home-icon.svg" alt="Home" />
             </a>
         </div>
 
         <p class="sub_heading">block all distractions</p>
+
+        <div id="active-session-container" style="display: none; background: #000; color: #fff; padding: 10px; border: 2px solid #000; margin: 10px 0; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-weight: bold; font-size: 14px; text-transform: uppercase;">Focus Session Active</p>
+            <p id="active-session-url" style="margin: 5px 0 0 0; font-size: 12px;"></p>
+            <p id="active-session-timer" style="margin: 5px 0 0 0; font-size: 16px; font-weight: bold; font-family: 'Press Start 2P', monospace;"></p>
+        </div>
 
         <div class="url-container">
             <p class="main_heading2">URL List: <span class="url-limit">(shows only 5 urls)</span></p>
@@ -29,6 +35,7 @@
         <button class="add_button" type="button">ADD SITE +</button>
         <button class="clear_button" type="button">CLEAR ALL</button>
     </div>
+    <script src="../lib/sync-constants.js"></script>
     <script src="popup.js"></script>
 </body>
 

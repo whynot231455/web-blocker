@@ -5,34 +5,33 @@ import { useAuth } from '@/hooks/useAuth';
 export const Header: React.FC = () => {
   const { isGuest } = useAuth();
   return (
-    <header className="flex flex-col items-center justify-center pt-10 pb-6 text-center">
-      <div className="flex items-center gap-5 mb-5">
-          <Image
-            src="/icons/logopic1-48.png"
-            alt="CTRL+BLCK Logo"
-            width={56}
-            height={56}
-            className="object-contain"
-            onError={() => {}}
-            unoptimized
-          />
-        <h1 style={{ fontSize: '26px', letterSpacing: '0.15em', fontWeight: 'bold', lineHeight: 1.2 }}>
+    <header className="flex flex-col items-center justify-center pt-16 pb-8 text-center">
+      <div className="flex items-center gap-4 mb-3">
+        <Image
+          src="/icons/logopic1-48.png"
+          alt="CTRL+BLCK Logo"
+          width={42}
+          height={42}
+          className="object-contain"
+          unoptimized
+        />
+        <h1 className="text-[28px] font-black uppercase tracking-tighter leading-none">
           CTRL + BLCK
         </h1>
       </div>
-      <p style={{ fontSize: '12px', letterSpacing: '0.1em', color: '#000', marginTop: '4px' }}>
+      
+      <p className="text-[10px] font-bold text-black uppercase tracking-[0.2em] mb-6">
         block all of your distractions instantly
       </p>
+
       {isGuest && (
-        <div 
-          className="mt-4 px-3 py-1 bg-green-100 text-green-700 border border-green-300 rounded-full inline-block uppercase font-bold tracking-widest"
-          style={{ fontSize: '8px' }}
-        >
-          ● Guest Mode (Local Storage Only)
+        <div className="px-4 py-1.5 bg-[#D1FAE5] text-[#065F46] border border-[#A7F3D0] rounded-full inline-flex items-center gap-2 text-[8px] font-black uppercase tracking-widest">
+          <span className="w-1.5 h-1.5 bg-[#10B981] rounded-full animate-pulse" />
+          Guest Mode (Local Storage Only)
         </div>
       )}
     </header>
   );
 };
 
-export default Header;
+

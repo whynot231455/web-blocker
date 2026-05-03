@@ -1,11 +1,11 @@
 import React from 'react';
 import { Trash2, Pencil } from 'lucide-react';
+import Image from 'next/image';
 import { BlockedSite } from '../../types/blockedSite';
 
 interface UrlItemProps {
   site: BlockedSite;
   onDelete: (id: string) => void;
-  onToggle: (id: string, currentStatus: boolean) => void;
 }
 
 export const UrlItem: React.FC<UrlItemProps> = ({ site, onDelete }) => {
@@ -25,20 +25,18 @@ export const UrlItem: React.FC<UrlItemProps> = ({ site, onDelete }) => {
   const firstLetter = cleanDomain.charAt(0).toUpperCase();
 
   return (
-    <div
-      className="flex items-center justify-between px-2 py-3 hover:bg-gray-50 transition-colors"
-      style={{ borderBottom: '1px solid #f0f0f0' }}
-    >
+    <div className="flex items-center justify-between px-2 py-5 hover:bg-gray-50/50 transition-all border-b border-gray-100 group">
       {/* Left: favicon + URL */}
-      <div className="flex items-center gap-5">
-        <div className="w-10 h-10 rounded-md overflow-hidden flex items-center justify-center shrink-0 bg-gray-50 border border-gray-100">
+      <div className="flex items-center gap-6">
+        <div className="w-10 h-10 flex items-center justify-center shrink-0">
           {!iconError ? (
-            <img
+            <Image
               src={faviconUrl}
               alt={domain}
               width={32}
               height={32}
-              className="object-contain"
+              className="w-8 h-8 object-contain transition-transform group-hover:scale-110"
+              unoptimized
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 if (target.src === faviconUrl) {
@@ -49,34 +47,34 @@ export const UrlItem: React.FC<UrlItemProps> = ({ site, onDelete }) => {
               }}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-black text-white text-[14px] font-bold">
+            <div className="w-8 h-8 flex items-center justify-center bg-black text-white text-[10px] font-black rounded-sm shadow-[2px_2px_0px_#FF4141]">
               {firstLetter}
             </div>
           )}
         </div>
-        <span style={{ fontSize: '9px', letterSpacing: '0.05em', fontWeight: 'bold' }}>
+        <span className="text-[10px] font-black tracking-tight text-black uppercase">
           {displayUrl}
         </span>
       </div>
 
       {/* Right: actions */}
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-6 opacity-30 group-hover:opacity-100 transition-opacity">
         <button
-          className="text-gray-700 hover:text-black transition-colors"
+          className="text-black hover:scale-110 transition-transform"
           aria-label="Edit"
         >
-          <Pencil size={16} strokeWidth={2} />
+          <Pencil size={14} strokeWidth={3} />
         </button>
         <button
           onClick={() => onDelete(site.id)}
-          className="text-gray-700 hover:text-red-600 transition-colors"
+          className="text-black hover:text-[#FF4141] hover:scale-110 transition-all"
           aria-label="Delete"
         >
-          <Trash2 size={16} strokeWidth={2} />
+          <Trash2 size={14} strokeWidth={3} />
         </button>
       </div>
     </div>
   );
 };
 
-export default UrlItem;
+

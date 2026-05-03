@@ -10,13 +10,13 @@
     "128": "assets/icons/logopic1-128.png"
   },
   "permissions": [
+    "alarms",
     "storage",
     "scripting",
     "tabs"
   ],
   "host_permissions": [
     "<all_urls>",
-    "http://localhost:3000/*",
     "https://laovgvktsxwiieuznnlm.supabase.co/*"
   ],
   "action": {
@@ -38,15 +38,17 @@
         "<all_urls>"
       ],
       "js": [
+        "lib/sync-constants.js",
         "content/content.js"
       ],
       "run_at": "document_start"
     },
     {
       "matches": [
-        "http://localhost:3000/*"
+        "<all_urls>"
       ],
       "js": [
+        "lib/sync-constants.js",
         "content/dashboard-sync.js"
       ],
       "run_at": "document_idle"

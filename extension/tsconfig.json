@@ -1,14 +1,17 @@
 {
     "compilerOptions": {
         "target": "ESNext",
-        "module": "ESNext",
-        "moduleResolution": "node",
+        "module": "Node16",
+        "moduleResolution": "node16",
         "resolveJsonModule": true,
         "isolatedModules": true,
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
         "strict": true,
         "skipLibCheck": true,
+        "allowJs": true,
+        "checkJs": true,
+        "noEmit": true,
         "lib": [
             "DOM",
             "DOM.Iterable",
@@ -19,6 +22,7 @@
         ]
     },
     "include": [
-        "**/*.ts"
+        "**/*.ts",
+        "**/*.js"
     ]
 }
