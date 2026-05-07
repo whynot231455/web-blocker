@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
 import { Shield, Bell, Moon, Sliders } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { ExtensionGate } from '@/components/layout/ExtensionGate';
 import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
@@ -35,6 +36,7 @@ export default function SettingsPage() {
   ];
 
   return (
+    <ExtensionGate>
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       <div className="flex-1 flex flex-col" style={{ marginLeft: '84px' }}>
@@ -79,6 +81,7 @@ export default function SettingsPage() {
         </main>
       </div>
     </div>
+    </ExtensionGate>
   );
 }
 

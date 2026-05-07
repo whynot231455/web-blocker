@@ -25,7 +25,8 @@ globalThis.CTRL_BLCK_SYNC = {
         triggerSync: 'triggerSync',
         addSiteToSupabase: 'addSiteToSupabase',
         deleteSiteFromSupabase: 'deleteSiteFromSupabase',
-        clearSitesFromSupabase: 'clearSitesFromSupabase'
+        clearSitesFromSupabase: 'clearSitesFromSupabase',
+        triggerDashboardRefresh: 'triggerDashboardRefresh'
     },
     /**
      * @param {string} url

@@ -187,6 +187,10 @@ if (!syncConfig) {
                         localStorage.setItem(storageKeys.guestSites, JSON.stringify(websiteSites));
                         window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
                     }
+                } else if (!isGuest && Array.isArray(urls)) {
+                    // Authenticated user — storage was updated by background after Supabase sync.
+                    // Dispatch ctrl-blck-sync so useBlockedSites re-fetches from Supabase.
+                    window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
                 }
             } catch (error) {
                 console.error('CTRL+BLCK: Error syncing extension to dashboard:', error);
@@ -245,6 +249,10 @@ if (!syncConfig) {
                     localStorage.removeItem(storageKeys.guestSites);
                     localStorage.removeItem(GUEST_FOCUS_SESSIONS_KEY);
                 }
+                window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
+            }
+            if (message.action === messageActions.triggerDashboardRefresh) {
+                // Background completed a Supabase mutation — tell the website to re-fetch
                 window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
             }
         });

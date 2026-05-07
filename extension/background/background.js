@@ -306,7 +306,7 @@ async function addSiteToSupabase(url) {
       }
 
       await syncFromSupabase();
-      await notifyDashboardForGuestSync();
+      await notifyDashboardToRefresh();
       return { success: true, url: hostname, reactivated: !isActive };
     }
 
@@ -328,7 +328,7 @@ async function addSiteToSupabase(url) {
     }
 
     await syncFromSupabase();
-    await notifyDashboardForGuestSync();
+    await notifyDashboardToRefresh();
     return { success: true, url: hostname };
   } catch (error) {
     console.error('Add to Supabase failed:', error);
@@ -338,20 +338,26 @@ async function addSiteToSupabase(url) {
 
 
 /**
- * Notify dashboard for guest mode
+ * Notify all open dashboard tabs to refresh their UI immediately.
+ * Sends triggerDashboardRefresh which dashboard-sync.js translates
+ * into a ctrl-blck-sync window event, causing useBlockedSites to re-fetch.
  */
-async function notifyDashboardForGuestSync() {
+async function notifyDashboardToRefresh() {
   try {
-    const result = await chrome.storage.local.get(['isGuest', STORAGE_KEYS.dashboardOrigin]);
+    const result = await chrome.storage.local.get(STORAGE_KEYS.dashboardOrigin);
     const dashboardOrigin = result[STORAGE_KEYS.dashboardOrigin];
     const origin = dashboardOrigin || DEFAULT_DASHBOARD_ORIGIN;
     const tabs = await chrome.tabs.query({ url: `${origin}/*` });
 
-    if (tabs[0] && tabs[0].id !== undefined) {
-      chrome.tabs.sendMessage(tabs[0].id, { action: MESSAGE_ACTIONS.triggerSync });
+    for (const tab of tabs) {
+      if (tab.id !== undefined) {
+        chrome.tabs.sendMessage(tab.id, { action: MESSAGE_ACTIONS.triggerDashboardRefresh }).catch(() => {
+          // Tab may not have the content script loaded yet — safe to ignore
+        });
+      }
     }
   } catch (error) {
-    console.warn('Failed to notify dashboard for guest sync:', error);
+    console.warn('Failed to notify dashboard tabs:', error);
   }
 }
 
@@ -383,6 +389,7 @@ async function deleteSiteFromSupabase(hostname) {
     }
 
     await syncFromSupabase();
+    await notifyDashboardToRefresh();
     return { success: true, url: normalizedHostname };
   } catch (error) {
     console.error('Delete from Supabase failed:', error);
@@ -410,6 +417,7 @@ async function clearSitesFromSupabase() {
     }
 
     await syncFromSupabase();
+    await notifyDashboardToRefresh();
     return { success: true };
   } catch (error) {
     console.error('Clear from Supabase failed:', error);

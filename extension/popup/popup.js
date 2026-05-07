@@ -105,14 +105,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 const updatedURLs = urls.filter((/** @type {string} */ url) => syncConfig.normalizeHostname(url) !== hostname);
                 await chrome.storage.local.set({ [storageKeys.blockedSites]: updatedURLs });
 
-                // Notify website to sync display
-                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                    if (tabs[0]?.id) {
-                        chrome.tabs.sendMessage(tabs[0].id, { action: messageActions.triggerSync });
-                    }
-                });
-
                 // Sync with Supabase if authenticated
+                // Note: content.js re-evaluates blocking via chrome.storage.onChanged.
+                // Dashboard is notified by background.js after Supabase sync completes.
                 chrome.runtime.sendMessage({ action: messageActions.deleteSiteFromSupabase, url: hostname });
             } catch (error) {
                 console.error('Error deleting URL:', error);
@@ -198,7 +193,7 @@ async function initializePopup(isConfirmationScreen) {
                 storageKeys.supabaseSession,
                 'isGuest'
             ]);
-            
+
             if (!supabaseSession && !isGuest) {
                 const loginUrl = await buildDashboardUrl(dashboardPaths.login);
                 await chrome.tabs.create({ url: loginUrl });
@@ -398,16 +393,12 @@ async function add_elements() {
         }
 
         if (!storedHostnames.includes(currentHostname)) {
-            const updatedURLs = [currentTabURL, ...URL_list];
+            const normalizedHostname = syncConfig.normalizeHostname(currentTabURL);
+            const updatedURLs = [normalizedHostname, ...URL_list];
             await chrome.storage.local.set({ [storageKeys.blockedSites]: updatedURLs });
 
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                if (tabs[0]?.id) {
-                    chrome.tabs.sendMessage(tabs[0].id, { action: messageActions.triggerSync });
-                }
-            });
-
-            window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
+            // Note: content.js re-evaluates blocking via chrome.storage.onChanged.
+            // Dashboard is notified by background.js after Supabase sync completes.
             chrome.runtime.sendMessage({ action: messageActions.addSiteToSupabase, url: currentTabURL });
             showConfirmationScreen(currentHostname);
         } else {
@@ -442,7 +433,7 @@ function showConfirmationScreen(hostname) {
         h2.className = 'blocked-url';
         h2.textContent = hostname;
         info.appendChild(h2);
-        
+
         const iconDiv = document.createElement('div');
         iconDiv.className = 'website-icon';
         const faviconImg = document.createElement('img');
@@ -499,13 +490,8 @@ async function removeAll_elements() {
 
         await chrome.storage.local.set({ [storageKeys.blockedSites]: [] });
 
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs[0]?.id) {
-                chrome.tabs.sendMessage(tabs[0].id, { action: messageActions.triggerSync });
-            }
-        });
-
-        window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
+        // Note: content.js re-evaluates blocking via chrome.storage.onChanged.
+        // Dashboard is notified by background.js after Supabase sync completes.
 
         if (list_table) {
             list_table.innerHTML = "";

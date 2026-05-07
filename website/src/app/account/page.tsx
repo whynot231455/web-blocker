@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { User, Shield, Award, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
+import { ExtensionGate } from '@/components/layout/ExtensionGate';
 import { useRouter } from 'next/navigation';
 import { useFocusSessions } from '@/hooks/useFocusSessions';
 import { useBlockedSites } from '@/hooks/useBlockedSites';
@@ -40,6 +41,7 @@ export default function AccountPage() {
   // ─── Guest view ───────────────────────────────────────────────────────────
   if (isGuest && !user) {
     return (
+      <ExtensionGate>
       <div className="flex min-h-screen bg-gray-50">
         <Sidebar />
         <div className="flex-1 flex flex-col" style={{ marginLeft: '84px' }}>
@@ -114,6 +116,7 @@ export default function AccountPage() {
           </main>
         </div>
       </div>
+      </ExtensionGate>
     );
   }
 
@@ -127,6 +130,7 @@ export default function AccountPage() {
   const email = user?.email || 'N/A';
 
   return (
+    <ExtensionGate>
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       <div className="flex-1 flex flex-col" style={{ marginLeft: '84px' }}>
@@ -206,6 +210,7 @@ export default function AccountPage() {
         </main>
       </div>
     </div>
+    </ExtensionGate>
   );
 }
 

@@ -54,9 +54,14 @@ export default function LandingPage() {
                   Go to Dashboard <ArrowRight size={20} />
                 </button>
               </Link>
-              <button className="text-[12px] font-bold uppercase tracking-widest bg-white text-black px-10 py-6 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.1)] hover:shadow-[8px_8px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all">
+              <a
+                href="https://github.com/whynot231455/web-blocker"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[12px] font-bold uppercase tracking-widest bg-white text-black px-10 py-6 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.1)] hover:shadow-[8px_8px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all inline-block"
+              >
                 Install Extension
-              </button>
+              </a>
             </div>
             <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-[8px] font-bold uppercase tracking-widest text-gray-500">
               <div className="flex items-center gap-2"><CheckCircle size={16} className="text-black" /> Free forever</div>

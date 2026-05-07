@@ -11,6 +11,7 @@ import { TimerDisplay } from '@/components/dashboard/TimerDisplay';
 import { SessionItem } from '@/components/dashboard/SessionItem';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { ExtensionGate } from '@/components/layout/ExtensionGate';
 
 export default function SessionsPage() {
   const { user, isGuest, loading: authLoading } = useAuth();
@@ -58,6 +59,7 @@ export default function SessionsPage() {
   };
 
   return (
+    <ExtensionGate>
     <div className="flex min-h-screen bg-gray-50 font-mono">
       <Sidebar />
       <div className="flex-1 flex flex-col" style={{ marginLeft: '84px' }}>
@@ -209,5 +211,6 @@ export default function SessionsPage() {
         </main>
       </div>
     </div>
+    </ExtensionGate>
   );
 }
