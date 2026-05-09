@@ -139,7 +139,7 @@ export default function SessionsPage() {
                 </div>
                 <div className="bg-white border-2 border-black shadow-[8px_8px_0px_#000] p-6">
                   <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
-                    Change the duration for the extension's "Unlock" button.
+                    Change the duration for the extension&apos;s &quot;Unlock&quot; button.
                   </p>
                   <select
                     className="w-full border-2 border-black p-3 bg-gray-50 font-mono font-bold text-sm"

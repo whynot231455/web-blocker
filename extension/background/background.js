@@ -39,7 +39,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         isGuest: false
       },
       () => {
-        console.log('Session saved, triggering initial sync');
+        if (DEBUG_MODE) console.log('Session saved, triggering initial sync');
         void syncFromSupabase();
       }
     );
@@ -208,7 +208,7 @@ async function syncFromSupabase() {
   try {
     const session = await getSession();
     if (!session || !session.access_token || !session.user_id) {
-      console.log('No active session, skipping sync');
+      if (DEBUG_MODE) console.log('No active session, skipping sync');
       return { success: false, error: 'Not authenticated' };
     }
 
@@ -269,7 +269,7 @@ async function syncFromSupabase() {
 
     if (DEBUG_MODE) console.log(`Synced ${allBlockedUrls.length} blocked sites from Supabase`);
     if (activeSession && DEBUG_MODE) {
-      console.log(`Active session found for: ${activeSession.url}`);
+      console.log(`Active session found for: ${activeSession.url} (session active)`);
     }
     return { success: true, count: allBlockedUrls.length };
   } catch (error) {
@@ -493,5 +493,5 @@ async function notifyDashboardToClearSession(options = {}) {
   }
 }
 
-console.log('CTRL+BLCK Background Service Worker Started with Sync Logic');
+if (DEBUG_MODE) console.log('CTRL+BLCK Background Service Worker Started with Sync Logic');
 

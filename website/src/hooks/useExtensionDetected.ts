@@ -16,9 +16,10 @@ export function useExtensionDetected() {
   const [status, setStatus] = useState<ExtensionStatus>('checking');
 
   useEffect(() => {
-    // Dev-mode bypass
+    // Dev-mode bypass — defer setState to avoid calling it synchronously
+    // inside the effect body (react-hooks/set-state-in-effect)
     if (process.env.NEXT_PUBLIC_SKIP_EXTENSION_CHECK === 'true') {
-      setStatus('installed');
+      queueMicrotask(() => setStatus('installed'));
       return;
     }
 
