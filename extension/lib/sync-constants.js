@@ -1,4 +1,5 @@
 globalThis.CTRL_BLCK_SYNC = {
+    debugMode: false, // Set to true to enable verbose console logging across all content scripts
     supabaseUrl: 'https://laovgvktsxwiieuznnlm.supabase.co',
     supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxhb3Zndmt0c3h3aWlldXpubmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjY0MDIsImV4cCI6MjA4NzE0MjQwMn0.ZZBc9I7QLAer9cb05okS2yKcB-m8WZgKqgdQtkCbfLI',
     dashboardMetaName: 'ctrl-blck-dashboard',
@@ -26,7 +27,8 @@ globalThis.CTRL_BLCK_SYNC = {
         addSiteToSupabase: 'addSiteToSupabase',
         deleteSiteFromSupabase: 'deleteSiteFromSupabase',
         clearSitesFromSupabase: 'clearSitesFromSupabase',
-        triggerDashboardRefresh: 'triggerDashboardRefresh'
+        triggerDashboardRefresh: 'triggerDashboardRefresh',
+        syncSettings: 'syncSettings'
     },
     /**
      * @param {string} url

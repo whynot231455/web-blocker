@@ -132,57 +132,82 @@ export default function SessionsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
             {/* Start Session / URL List */}
-            <section>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-black uppercase tracking-widest">Start a Session</h3>
-              </div>
-              <div className="bg-white border-2 border-black shadow-[8px_8px_0px_#000] overflow-hidden">
-                {sitesLoading ? (
-                  <div className="p-8 text-center animate-pulse text-[10px] font-bold uppercase text-gray-400">Loading your sites...</div>
-                ) : sites.length === 0 ? (
-                  <div className="p-8 text-center text-[10px] font-bold uppercase text-gray-400">
-                    No sites in your block list. <br />
-                    Add some in the Dashboard first!
-                  </div>
-                ) : (
-                  <div className="divide-y-2 divide-gray-100">
-                    {sites.map((site, index) => (
-                      <div key={`${site.id}-${index}`} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                        <div>
-                          <p className="text-sm font-black uppercase tracking-tight text-black">{site.url}</p>
-                          <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Select duration</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <select 
-                            value={selectedDurations[site.url] || 25}
-                            onChange={(e) => handleDurationChange(site.url, parseInt(e.target.value))}
-                            className="bg-gray-100 border-2 border-transparent p-2 text-[10px] font-bold focus:border-black outline-none transition-all"
-                          >
-                            <option value={1}>1 min</option>
-                            <option value={5}>5 mins</option>
-                            <option value={15}>15 mins</option>
-                            <option value={25}>25 mins</option>
-                            <option value={45}>45 mins</option>
-                            <option value={60}>60 mins</option>
-                          </select>
-                          <button 
-                            onClick={() => handleStartSession(site.url)}
-                            disabled={!!activeSession}
-                            className={`p-3 border-2 border-black transition-all ${
-                              activeSession 
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                : 'bg-black text-white shadow-[4px_4px_0px_rgba(0,0,0,0.2)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]'
-                            }`}
-                          >
-                            <Play size={16} fill="currentColor" />
-                          </button>
-                        </div>
-                      </div>
+            <div className="flex flex-col gap-10">
+              <section>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-sm font-black uppercase tracking-widest">Quick Unlock Settings</h3>
+                </div>
+                <div className="bg-white border-2 border-black shadow-[8px_8px_0px_#000] p-6">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
+                    Change the duration for the extension's "Unlock" button.
+                  </p>
+                  <select
+                    className="w-full border-2 border-black p-3 bg-gray-50 font-mono font-bold text-sm"
+                    defaultValue={typeof window !== 'undefined' ? localStorage.getItem('tempAccessDuration') || '10' : '10'}
+                    onChange={(e) => {
+                      localStorage.setItem('tempAccessDuration', e.target.value);
+                      window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
+                    }}
+                  >
+                    {[1, 5, 10, 15, 20, 30, 60].map(num => (
+                      <option key={num} value={num}>Unlock for {num} minutes</option>
                     ))}
-                  </div>
-                )}
-              </div>
-            </section>
+                  </select>
+                </div>
+              </section>
+
+              <section>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-sm font-black uppercase tracking-widest">Start a Session</h3>
+                </div>
+                <div className="bg-white border-2 border-black shadow-[8px_8px_0px_#000] overflow-hidden">
+                  {sitesLoading ? (
+                    <div className="p-8 text-center animate-pulse text-[10px] font-bold uppercase text-gray-400">Loading your sites...</div>
+                  ) : sites.length === 0 ? (
+                    <div className="p-8 text-center text-[10px] font-bold uppercase text-gray-400">
+                      No sites in your block list. <br />
+                      Add some in the Dashboard first!
+                    </div>
+                  ) : (
+                    <div className="divide-y-2 divide-gray-100">
+                      {sites.map((site, index) => (
+                        <div key={`${site.id}-${index}`} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                          <div>
+                            <p className="text-sm font-black uppercase tracking-tight text-black">{site.url}</p>
+                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Select duration</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <select 
+                              value={selectedDurations[site.url] || 25}
+                              onChange={(e) => handleDurationChange(site.url, parseInt(e.target.value))}
+                              className="bg-gray-100 border-2 border-transparent p-2 text-[10px] font-bold focus:border-black outline-none transition-all"
+                            >
+                              <option value={1}>1 min</option>
+                              <option value={5}>5 mins</option>
+                              <option value={15}>15 mins</option>
+                              <option value={25}>25 mins</option>
+                              <option value={45}>45 mins</option>
+                              <option value={60}>60 mins</option>
+                            </select>
+                            <button 
+                              onClick={() => handleStartSession(site.url)}
+                              disabled={!!activeSession}
+                              className={`p-3 border-2 border-black transition-all ${
+                                activeSession 
+                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                  : 'bg-black text-white shadow-[4px_4px_0px_rgba(0,0,0,0.2)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]'
+                              }`}
+                            >
+                              <Play size={16} fill="currentColor" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
 
             {/* Recent History */}
             <section>

@@ -31,12 +31,52 @@ if (!syncConfig) {
 
     if (isKnownOrigin || hasDashboardMarker) {
         let lastDashboardUpdate = 0;
+        const DEBUG = syncConfig.debugMode;
+
+        // Debounce wrapper for syncDashboardToExtension — prevents burst re-entry
+        // from rapid storage events or multiple ctrl-blck-sync dispatches.
+        /** @type {number | null} */
+        let syncDashboardDebounceTimer = null;
+        function scheduleDashboardSync() {
+            if (syncDashboardDebounceTimer !== null) clearTimeout(syncDashboardDebounceTimer);
+            syncDashboardDebounceTimer = setTimeout(() => {
+                syncDashboardDebounceTimer = null;
+                syncDashboardToExtension();
+            }, 300);
+        }
+
+        /** Returns false if the extension has been reloaded/invalidated */
+        function isExtensionAlive() {
+            try {
+                // Accessing chrome.runtime.id throws if the context is invalidated
+                return Boolean(chrome.runtime?.id);
+            } catch {
+                return false;
+            }
+        }
+
+        /**
+         * Safe wrapper around chrome.runtime.sendMessage.
+         * Silently swallows "context invalidated" and "receiving end does not exist" errors.
+         * @param {any} payload
+         */
+        function safeSend(payload) {
+            if (!isExtensionAlive()) return;
+            try {
+                chrome.runtime.sendMessage(payload).catch(() => {
+                    // Swallow "Receiving end does not exist" — happens when the
+                    // background worker is not yet ready or was reloaded.
+                });
+            } catch {
+                // Swallow "Extension context invalidated" errors
+            }
+        }
 
         function syncDashboardToExtension() {
             try {
                 lastDashboardUpdate = Date.now();
 
-                chrome.runtime.sendMessage({
+                safeSend({
                     action: messageActions.syncDashboardOrigin,
                     origin: window.location.origin
                 });
@@ -56,7 +96,7 @@ if (!syncConfig) {
                 if (sessionData) {
                     const session = JSON.parse(sessionData);
                     if (session && session.access_token && session.user?.id) {
-                        chrome.runtime.sendMessage({
+                        safeSend({
                             action: messageActions.syncSession,
                             session: {
                                 access_token: session.access_token,
@@ -66,13 +106,13 @@ if (!syncConfig) {
                         });
                     }
                 } else {
-                    chrome.runtime.sendMessage({
+                    safeSend({
                         action: messageActions.clearSession,
                         preserveGuestData: effectiveGuestStatus
                     });
                 }
 
-                chrome.runtime.sendMessage({
+                safeSend({
                     action: messageActions.syncGuestStatus,
                     isGuest: effectiveGuestStatus
                 });
@@ -99,16 +139,30 @@ if (!syncConfig) {
                 }
 
                 if (effectiveGuestStatus || urls.length > 0 || normalizedActiveSession) {
-                    chrome.runtime.sendMessage({
+                    safeSend({
                         action: messageActions.syncUrls,
                         urls: Array.from(new Set(urls)),
                         activeSession: normalizedActiveSession
                     });
                 } else if (!sessionData) {
-                    chrome.runtime.sendMessage({
+                    safeSend({
                         action: messageActions.syncUrls,
                         urls: [],
                         activeSession: null
+                    });
+                }
+
+                const rawLimit = localStorage.getItem('dailyUnlockLimit');
+                const rawDuration = localStorage.getItem('tempAccessDuration');
+                
+                if (rawLimit || rawDuration) {
+                    const settingsPayload = {};
+                    if (rawLimit) settingsPayload.dailyUnlockLimit = parseInt(rawLimit, 10);
+                    if (rawDuration) settingsPayload.tempAccessDuration = parseInt(rawDuration, 10);
+                    
+                    safeSend({
+                        action: messageActions.syncSettings,
+                        ...settingsPayload
                     });
                 }
             } catch (error) {
@@ -142,22 +196,18 @@ if (!syncConfig) {
                         console.error('CTRL+BLCK: Error parsing current local sites:', error);
                     }
 
-                    const sessionUrl = session ? session.url : null;
-                    const persistentUrls = sessionUrl 
-                        ? urls.filter(u => syncConfig.normalizeHostname(u) !== syncConfig.normalizeHostname(sessionUrl)) 
-                        : urls;
-
+                    // Use all urls from storage for comparison — do NOT strip the active session URL.
+                    // The session URL stays in the block list; content.js checkBlocking() handles the allow-override.
                     /** @type {Map<string, LocalSite>} */
                     const uniqueSitesMap = new Map();
 
-                    persistentUrls.forEach((/** @type {string} */ url) => {
+                    urls.forEach((/** @type {string} */ url) => {
                         const cleanUrl = syncConfig.normalizeHostname(url);
                         if (!cleanUrl) return;
 
                         const id = `local_${btoa(cleanUrl).substring(0, 40)}`;
                         const existingSite = currentSites.find((/** @type {LocalSite} */ site) => site.id === id || site.url === cleanUrl);
 
-                        // Only add if not already in the map to prevent duplicates in dashboard
                         if (!uniqueSitesMap.has(cleanUrl)) {
                             uniqueSitesMap.set(cleanUrl, {
                                 id,
@@ -185,12 +235,12 @@ if (!syncConfig) {
 
                     if (currentUrls !== newUrls) {
                         localStorage.setItem(storageKeys.guestSites, JSON.stringify(websiteSites));
-                        window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
+                        // Use ctrl-blck-ui-refresh (not ctrl-blck-sync) so the dashboard UI
+                        // updates without triggering another full extension sync cycle.
+                        window.dispatchEvent(new CustomEvent('ctrl-blck-ui-refresh'));
                     }
                 } else if (!isGuest && Array.isArray(urls)) {
-                    // Authenticated user — storage was updated by background after Supabase sync.
-                    // Dispatch ctrl-blck-sync so useBlockedSites re-fetches from Supabase.
-                    window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
+                    // Authenticated user — dashboard uses Supabase realtime, no dispatch needed.
                 }
             } catch (error) {
                 console.error('CTRL+BLCK: Error syncing extension to dashboard:', error);
@@ -204,22 +254,37 @@ if (!syncConfig) {
             if (
                 event.key === storageKeys.guestFlag ||
                 event.key === storageKeys.supabaseAuthToken ||
-                event.key === storageKeys.guestSites
+                event.key === storageKeys.guestSites ||
+                event.key === 'dailyUnlockLimit' ||
+                event.key === 'tempAccessDuration'
             ) {
-                syncDashboardToExtension();
+                // Use debounced wrapper to prevent burst re-entry from rapid storage events
+                scheduleDashboardSync();
             }
         });
 
+        // ctrl-blck-sync: fired by user-initiated actions (add/delete site, login, settings change).
+        // Always triggers a full sync to the extension.
         window.addEventListener('ctrl-blck-sync', () => {
+            if (!isExtensionAlive()) return;
+
             const guestStatus = localStorage.getItem(storageKeys.guestFlag) === 'true' ||
                 parseStoredArray(localStorage.getItem(storageKeys.guestSites), 'sites').length > 0 ||
                 parseStoredArray(localStorage.getItem(GUEST_FOCUS_SESSIONS_KEY), 'focus sessions').some(session => session?.status === 'active');
 
             if (guestStatus) {
-                syncDashboardToExtension();
+                // Debounced — prevents multiple user actions in quick succession from spamming the extension
+                scheduleDashboardSync();
             } else {
-                chrome.runtime.sendMessage({ action: messageActions.triggerSync });
+                safeSend({ action: messageActions.triggerSync });
             }
+        });
+
+        // ctrl-blck-ui-refresh: fired internally by syncExtensionToDashboard() when extension
+        // state changes. Only refreshes the dashboard UI — does NOT re-sync to the extension,
+        // which would restart the loop.
+        window.addEventListener('ctrl-blck-ui-refresh', () => {
+            void syncExtensionToDashboard();
         });
 
         /**

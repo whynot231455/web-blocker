@@ -21,34 +21,69 @@
 
     const normalizedCurrentHostname = normalize(currentHostname);
 
-    // Initial Check
-    chrome.storage.local.get({
-        [blockedSitesKey]: [],
-        hiddenUrls: [],
-        allowedSites: {},
-        activeSession: null,
-        countdownDuration: 5,
-        tempAccessDuration: 10
-    }, function (data) {
-        const activeSession = /** @type {FocusSession | null} */ (data.activeSession);
-        checkBlocking({ ...data, activeSession });
-    });
+    // Initial Check — wrapped in try/catch in case the extension is reloaded
+    // before this script has a chance to run (context may already be invalidated).
+    try {
+        chrome.storage.local.get({
+            [blockedSitesKey]: [],
+            hiddenUrls: [],
+            allowedSites: {},
+            activeSession: null,
+            countdownDuration: 5,
+            tempAccessDuration: 10,
+            dailyUnlockLimit: 5,
+            dailyUnlockStats: { date: new Date().toDateString(), count: 0 }
+        }, function (data) {
+            if (!chrome.runtime?.id) return; // context invalidated mid-callback
+            const activeSession = /** @type {FocusSession | null} */ (data.activeSession);
+            checkBlocking({ ...data, activeSession });
+        });
+    } catch {
+        // Extension context was already invalidated — nothing to do
+    }
 
-    // Listen for storage changes to update timer or blocking status dynamically
-    chrome.storage.onChanged.addListener(function (_changes, namespace) {
-        if (namespace === 'local') {
+    // Debounced re-evaluation: waits for all rapid-fire storage changes to settle
+    // before calling checkBlocking. Without this, sequential sync messages (syncUrls,
+    // syncSession, syncSettings, etc.) each trigger a re-check, causing the page to
+    // flash between the block screen and timer overlay.
+    /** @type {number | null} */
+    let recheckTimer = null;
+
+    /** Returns false if the extension has been reloaded/invalidated */
+    function isExtensionAlive() {
+        try {
+            return Boolean(chrome.runtime?.id);
+        } catch {
+            return false;
+        }
+    }
+
+    function scheduleRecheck() {
+        if (recheckTimer !== null) clearTimeout(recheckTimer);
+        recheckTimer = setTimeout(function () {
+            recheckTimer = null;
+            // Guard: extension may have been reloaded while the timer was pending
+            if (!isExtensionAlive()) return;
             chrome.storage.local.get({
                 [blockedSitesKey]: [],
                 hiddenUrls: [],
                 allowedSites: {},
                 activeSession: null,
                 countdownDuration: 5,
-                tempAccessDuration: 10
+                tempAccessDuration: 10,
+                dailyUnlockLimit: 5,
+                dailyUnlockStats: { date: new Date().toDateString(), count: 0 }
             }, function (data) {
                 const activeSession = /** @type {FocusSession | null} */ (data.activeSession);
-                // Re-evaluate blocking on storage change
                 checkBlocking({ ...data, activeSession });
             });
+        }, 150); // 150ms debounce — long enough for all sequential messages to land
+    }
+
+    // Listen for storage changes to update timer or blocking status dynamically
+    chrome.storage.onChanged.addListener(function (_changes, namespace) {
+        if (namespace === 'local') {
+            scheduleRecheck();
         }
     });
 
@@ -68,6 +103,13 @@
         const activeSession = /** @type {FocusSession | null} */ (data.activeSession);
         const countdownDuration = data.countdownDuration || 5;
         const tempAccessDuration = data.tempAccessDuration || 10;
+        const dailyUnlockLimit = data.dailyUnlockLimit || 5;
+        let dailyUnlockStats = data.dailyUnlockStats || { date: new Date().toDateString(), count: 0 };
+
+        const today = new Date().toDateString();
+        if (dailyUnlockStats.date !== today) {
+            dailyUnlockStats = { date: today, count: 0 };
+        }
 
         const allBlockedUrls = [...blockedUrls, ...hiddenUrls];
 
@@ -120,7 +162,7 @@
             } else {
                 // Site is blocked and NO access -> Show Block Screen
                 removeRetroTimer(); // If exists
-                blockSite(countdownDuration, tempAccessDuration);
+                blockSite(countdownDuration, tempAccessDuration, dailyUnlockStats, dailyUnlockLimit);
             }
         } else {
             // Not blocked, ensure no overlays
@@ -143,7 +185,7 @@
             return;
         }
 
-        const localFontUrl = chrome.runtime.getURL('fonts/PressStart2P-Regular.ttf');
+        const localFontUrl = chrome.runtime.getURL('assets/fonts/PressStart2P-Regular.ttf');
         initStyles(localFontUrl);
 
         const timerContainer = document.createElement('div');
@@ -344,8 +386,10 @@
     /**
      * @param {number} countdownDuration
      * @param {number} tempAccessDuration
+     * @param {{date: string, count: number}} dailyUnlockStats
+     * @param {number} dailyUnlockLimit
      */
-    function blockSite(countdownDuration, tempAccessDuration) {
+    function blockSite(countdownDuration, tempAccessDuration, dailyUnlockStats, dailyUnlockLimit) {
         if (document.getElementById('ctrl-blck-overlay')) return;
 
         try { window.stop(); } catch (e) { }
@@ -355,7 +399,7 @@
         document.head.innerHTML = '';
         document.body = document.createElement('body');
 
-        const localFontUrl = chrome.runtime.getURL('fonts/PressStart2P-Regular.ttf');
+        const localFontUrl = chrome.runtime.getURL('assets/fonts/PressStart2P-Regular.ttf');
         initStyles(localFontUrl);
 
         const overlay = document.createElement('div');
@@ -386,12 +430,23 @@
         goBackBtn.textContent = 'GO BACK';
         buttonGroup.appendChild(goBackBtn);
 
-        const unlockBtn = document.createElement('button');
-        unlockBtn.id = 'unlockBtn';
-        unlockBtn.className = 'ctrl-blck-button';
-        unlockBtn.style.marginTop = '20px';
-        unlockBtn.textContent = `UNLOCK FOR ${tempAccessDuration} MIN`;
-        buttonGroup.appendChild(unlockBtn);
+        let unlockBtn = null;
+        if (dailyUnlockStats.count < dailyUnlockLimit) {
+            unlockBtn = document.createElement('button');
+            unlockBtn.id = 'unlockBtn';
+            unlockBtn.className = 'ctrl-blck-button';
+            unlockBtn.style.marginTop = '20px';
+            const remaining = dailyUnlockLimit - dailyUnlockStats.count;
+            unlockBtn.textContent = `UNLOCK FOR ${tempAccessDuration} MIN (${remaining} LEFT)`;
+            buttonGroup.appendChild(unlockBtn);
+        } else {
+            const limitMsg = document.createElement('div');
+            limitMsg.style.marginTop = '20px';
+            limitMsg.style.fontSize = '10px';
+            limitMsg.style.color = '#ffb3b3';
+            limitMsg.textContent = `Daily unlock limit (${dailyUnlockLimit}) reached.`;
+            buttonGroup.appendChild(limitMsg);
+        }
 
         overlay.appendChild(buttonGroup);
         document.body.appendChild(overlay);
@@ -419,10 +474,17 @@
             else window.close();
         });
 
-        unlockBtn.addEventListener('click', () => {
-            clearInterval(blockTimer);
-            grantTemporaryAccess(tempAccessDuration);
-        });
+        if (unlockBtn) {
+            unlockBtn.addEventListener('click', () => {
+                clearInterval(blockTimer);
+                
+                // Increment and save stats
+                dailyUnlockStats.count += 1;
+                chrome.storage.local.set({ dailyUnlockStats }, () => {
+                    grantTemporaryAccess(tempAccessDuration);
+                });
+            });
+        }
     }
 
     /** @param {number} minutes */

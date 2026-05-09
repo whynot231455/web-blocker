@@ -231,11 +231,16 @@ export const useBlockedSites = () => {
 
         window.addEventListener('storage', handleStorageChange);
         window.addEventListener('ctrl-blck-sync', fetchSites as EventListener);
+        // Also listen for ctrl-blck-ui-refresh — fired internally by dashboard-sync.js
+        // when the extension sync updates localStorage (e.g. site added via extension popup).
+        // Safe to call fetchSites here: it only reads localStorage and updates React state.
+        window.addEventListener('ctrl-blck-ui-refresh', fetchSites as EventListener);
         
         return () => {
             cleanupRealtime();
             window.removeEventListener('storage', handleStorageChange);
             window.removeEventListener('ctrl-blck-sync', fetchSites as EventListener);
+            window.removeEventListener('ctrl-blck-ui-refresh', fetchSites as EventListener);
         };
     }, [fetchSites, isGuest, user]);
 

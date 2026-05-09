@@ -64,6 +64,25 @@ export default function SettingsPage() {
             ))}
           </div>
 
+          <div className="mt-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Extension Overrides</h3>
+            <p className="text-sm text-gray-500 mb-4">Set how many times per day you can bypass the block screen directly from the extension.</p>
+            <div className="flex items-center gap-4">
+              <select
+                className="border-2 border-black p-2 bg-gray-50 font-mono font-bold"
+                defaultValue={typeof window !== 'undefined' ? localStorage.getItem('dailyUnlockLimit') || '5' : '5'}
+                onChange={(e) => {
+                  localStorage.setItem('dailyUnlockLimit', e.target.value);
+                  window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
+                }}
+              >
+                {[0, 1, 2, 3, 5, 10, 15, 20].map(num => (
+                  <option key={num} value={num}>{num} times per day</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className="mt-10 p-6 bg-blue-600 rounded-xl text-white shadow-lg overflow-hidden relative">
             <div className="relative z-10">
               <h3 className="text-xl font-bold mb-2">Sync with Chrome Extension</h3>

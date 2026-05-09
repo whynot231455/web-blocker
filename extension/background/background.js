@@ -21,6 +21,9 @@ const DASHBOARD_PATHS = {
   login: syncConfig.dashboardPaths.login
 };
 
+// Set to true to enable verbose sync logging. Mirrors debugMode in sync-constants.js.
+const DEBUG_MODE = false;
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'closeTab' && sender.tab?.id !== undefined) {
     chrome.tabs.remove(sender.tab.id).catch(error => {
@@ -51,7 +54,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       clearBlockedSites: !preserveGuestData
     })
       .then(async () => {
-        console.log('Session cleared');
+        if (DEBUG_MODE) console.log('Session cleared');
         await notifyDashboardToClearSession({ clearGuestData: !preserveGuestData });
       })
       .catch(error => {
@@ -62,7 +65,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === MESSAGE_ACTIONS.syncGuestStatus) {
     chrome.storage.local.set({ isGuest: message.isGuest }, () => {
-      console.log('Guest status saved:', message.isGuest);
+      if (DEBUG_MODE) console.log('Guest status saved:', message.isGuest);
     });
     return;
   }
@@ -78,7 +81,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     chrome.storage.local.set(storageData, () => {
-      console.log('URLs synced from dashboard:', normalizedUrls.length);
+      if (DEBUG_MODE) console.log('URLs synced from dashboard:', normalizedUrls.length);
     });
     return;
   }
@@ -86,6 +89,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === MESSAGE_ACTIONS.syncDashboardOrigin) {
     const origin = typeof message.origin === 'string' ? message.origin : DEFAULT_DASHBOARD_ORIGIN;
     chrome.storage.local.set({ [STORAGE_KEYS.dashboardOrigin]: origin });
+    return;
+  }
+
+  if (message.action === MESSAGE_ACTIONS.syncSettings) {
+    /** @type {Record<string, any>} */
+    const settingsObj = {};
+    if (message.dailyUnlockLimit !== undefined) {
+      settingsObj.dailyUnlockLimit = message.dailyUnlockLimit;
+    }
+    if (message.tempAccessDuration !== undefined) {
+      settingsObj.tempAccessDuration = message.tempAccessDuration;
+    }
+    
+    if (Object.keys(settingsObj).length > 0) {
+      chrome.storage.local.set(settingsObj, () => {
+        if (DEBUG_MODE) console.log('Settings synced from dashboard:', settingsObj);
+      });
+    }
     return;
   }
 
@@ -246,8 +267,8 @@ async function syncFromSupabase() {
         activeSession: activeSession
     });
 
-    console.log(`Synced ${allBlockedUrls.length} blocked sites from Supabase`);
-    if (activeSession) {
+    if (DEBUG_MODE) console.log(`Synced ${allBlockedUrls.length} blocked sites from Supabase`);
+    if (activeSession && DEBUG_MODE) {
       console.log(`Active session found for: ${activeSession.url}`);
     }
     return { success: true, count: allBlockedUrls.length };
@@ -463,6 +484,8 @@ async function notifyDashboardToClearSession(options = {}) {
       chrome.tabs.sendMessage(tabs[0].id, {
         action: 'clearLocalStorage',
         clearGuestData
+      }).catch(() => {
+        // Tab may not have the content script loaded yet — safe to ignore
       });
     }
   } catch (e) {
