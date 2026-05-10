@@ -177,7 +177,11 @@
         const existingTimer = document.getElementById('ctrl-blck-timer');
         
         if (existingTimer) {
-            // If timer exists, just update the interval with the new timestamp
+            const oldExpiry = Number(existingTimer.dataset.expiry);
+            // If expiry hasn't changed by more than 2 seconds, don't restart the loop
+            // to prevent visual stuttering from rapid sync events.
+            if (Math.abs(oldExpiry - expiryTimestamp) < 2000) return;
+            
             const oldIntervalId = existingTimer.dataset.intervalId;
             if (oldIntervalId) clearInterval(Number(oldIntervalId));
             
@@ -340,6 +344,7 @@
 
         updateTimerDisplay(expiryTimestamp - Date.now()); // Initial call
         timerContainer.dataset.intervalId = String(timerInterval);
+        timerContainer.dataset.expiry = String(expiryTimestamp);
     }
 
     /** @param {number} ms */

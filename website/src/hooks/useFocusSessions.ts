@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from './useAuth';
+import { sanitizeUrl } from '@/lib/url';
 
 export interface FocusSession {
   id: string;
@@ -32,8 +33,13 @@ export function useFocusSessions() {
       setLoading(true);
 
       if (isGuest) {
-        const localData = localStorage.getItem('guest_focus_sessions');
-        const parsed = localData ? JSON.parse(localData) : [];
+        let parsed = [];
+        try {
+          const localData = localStorage.getItem('guest_focus_sessions');
+          parsed = localData ? JSON.parse(localData) : [];
+        } catch (e) {
+          console.error('Failed to parse guest sessions:', e);
+        }
         setSessions(parsed);
         const active = parsed.find((s: FocusSession) => s.status === 'active');
         setActiveSession(active || null);
@@ -71,28 +77,33 @@ export function useFocusSessions() {
 
   useEffect(() => {
     fetchSessions();
+
+    // Listen for sync events from the extension or other tabs
+    window.addEventListener('ctrl-blck-sync', fetchSessions as EventListener);
+    window.addEventListener('ctrl-blck-ui-refresh', fetchSessions as EventListener);
+
+    return () => {
+      window.removeEventListener('ctrl-blck-sync', fetchSessions as EventListener);
+      window.removeEventListener('ctrl-blck-ui-refresh', fetchSessions as EventListener);
+    };
   }, [fetchSessions]);
 
-const normalizeUrl = (raw: string): string => {
-    let url = raw.trim().toLowerCase();
-    url = url.replace(/^https?:\/\//i, '').split('/')[0].split('?')[0];
-    if (url.startsWith('www.')) {
-        url = url.substring(4);
-    }
-    return url;
-};
 
   const startSession = async (url: string, durationMinutes: number) => {
     if (!user && !isGuest) return;
 
-    const normalizedUrl = normalizeUrl(url);
+    const normalizedUrl = sanitizeUrl(url);
+    const now = new Date().toISOString();
 
     const newSessionData = {
       url: normalizedUrl,
       target_duration: durationMinutes,
       status: 'active' as const,
-      start_time: new Date().toISOString(),
+      start_time: now,
     };
+
+    // Store the previous active session to rollback if needed
+    const previousActiveSession = activeSession;
 
     try {
       if (isGuest) {
@@ -101,7 +112,7 @@ const normalizeUrl = (raw: string): string => {
           user_id: 'guest',
           ...newSessionData,
           end_time: null,
-          created_at: new Date().toISOString()
+          created_at: now
         };
         const updated = [newSession, ...sessions];
         setSessions(updated);
@@ -109,10 +120,29 @@ const normalizeUrl = (raw: string): string => {
         localStorage.setItem('guest_focus_sessions', JSON.stringify(updated));
         
         // Notify the content script for immediate sync
-        window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
+        window.dispatchEvent(new CustomEvent('ctrl-blck-sync', { 
+            detail: { activeSession: newSession } 
+        }));
         
         return newSession;
       }
+
+      // Optimistic Update for authenticated users
+      const optimisticSession: FocusSession = {
+        id: `temp_${Date.now()}`,
+        user_id: user?.id || '',
+        ...newSessionData,
+        end_time: null,
+        created_at: now
+      };
+
+      setActiveSession(optimisticSession);
+      setSessions(prev => [optimisticSession, ...prev]);
+
+      // Notify the extension immediately with optimistic data
+      window.dispatchEvent(new CustomEvent('ctrl-blck-sync', { 
+          detail: { activeSession: optimisticSession } 
+      }));
 
       const { data, error } = await supabase
         .from('focus_sessions')
@@ -122,15 +152,21 @@ const normalizeUrl = (raw: string): string => {
 
       if (error) throw error;
       
+      // Update with the real data from Supabase (to get the real ID and timestamps)
       setActiveSession(data);
-      setSessions(prev => [data, ...prev]);
+      setSessions(prev => prev.map(s => s.id === optimisticSession.id ? data : s));
       
-      // Notify the content script for immediate sync
-      window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
+      // Re-dispatch with final data if needed (usually optimistic is enough for the timer)
+      window.dispatchEvent(new CustomEvent('ctrl-blck-sync', { 
+          detail: { activeSession: data } 
+      }));
       
       return data;
     } catch (error) {
       console.error('Error starting session:', error);
+      // Rollback on error
+      setActiveSession(previousActiveSession);
+      setSessions(prev => prev.filter(s => !s.id.startsWith('temp_')));
       throw error;
     }
   };

@@ -27,7 +27,8 @@ web-blocker/
 │       ├── hooks/            # Custom logic (useAuth, useFocusSessions, etc.)
 │       ├── lib/              # Shared library instances (Supabase client)
 │       └── types/            # TypeScript interfaces
-└── shared/                   # (Optional) shared code between extension/web
+└── shared/                   # Logic shared between extension and website
+    └── url-utils.js          # Source of truth for URL normalization/validation
 ```
 
 ---
@@ -76,3 +77,10 @@ The project follows a **Neobrutalist** design aesthetic characterized by high co
 - **`useAuth.ts`**: Manages Supabase authentication state and Guest Mode toggle.
 - **`useBlockedSites.ts`**: Syncs the `blocked_sites` table. Notifies the extension of changes via custom events.
 - **`useFocusSessions.ts`**: Handles the creation and tracking of timed sessions. Automatically calculates stats for "Today", "Week", and "All-time".
+
+---
+
+## 🛠️ Shared Utilities
+- **`shared/url-utils.js`**: This is the single source of truth for all URL normalization and validation logic. It is used by:
+    - The **Chrome Extension** (via `extension/lib/url-utils.js` copy) to ensure consistent blocking matches.
+    - The **Website Dashboard** to sanitize user input and maintain consistent database entries.

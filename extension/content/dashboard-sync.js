@@ -265,8 +265,27 @@ if (!syncConfig) {
 
         // ctrl-blck-sync: fired by user-initiated actions (add/delete site, login, settings change).
         // Always triggers a full sync to the extension.
-        window.addEventListener('ctrl-blck-sync', () => {
+        window.addEventListener('ctrl-blck-sync', (event) => {
             if (!isExtensionAlive()) return;
+
+            const detail = /** @type {any} */ (event).detail;
+            const manualActiveSession = detail?.activeSession || null;
+
+            // If we have manual session data, trigger an immediate sync bypass
+            if (manualActiveSession) {
+                // We still want to do a full sync eventually, but let's push the session NOW
+                lastDashboardUpdate = Date.now();
+                const sessionUrl = manualActiveSession.url ? syncConfig.normalizeHostname(manualActiveSession.url) : null;
+                
+                safeSend({
+                    action: messageActions.syncUrls,
+                    // We don't have the full list of URLs here easily without re-reading storage, 
+                    // but for a session start, the most important thing is the activeSession.
+                    // Background script will merge or we can trigger a full sync after.
+                    activeSession: sessionUrl ? { ...manualActiveSession, url: sessionUrl } : null,
+                    isOptimistic: true // Flag for background to handle differently if needed
+                });
+            }
 
             const guestStatus = localStorage.getItem(storageKeys.guestFlag) === 'true' ||
                 parseStoredArray(localStorage.getItem(storageKeys.guestSites), 'sites').length > 0 ||
@@ -283,9 +302,9 @@ if (!syncConfig) {
         // ctrl-blck-ui-refresh: fired internally by syncExtensionToDashboard() when extension
         // state changes. Only refreshes the dashboard UI — does NOT re-sync to the extension,
         // which would restart the loop.
-        window.addEventListener('ctrl-blck-ui-refresh', () => {
-            void syncExtensionToDashboard();
-        });
+        // window.addEventListener('ctrl-blck-ui-refresh', () => {
+        //     void syncExtensionToDashboard();
+        // });
 
         /**
          * @param {Object.<string, chrome.storage.StorageChange>} changes

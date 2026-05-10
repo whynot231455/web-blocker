@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 // Load shared configuration (credentials, storage keys, message actions)
+importScripts('../lib/config.js');
+importScripts('../lib/url-utils.js');
 importScripts('../lib/sync-constants.js');
 
 const syncConfig = globalThis.CTRL_BLCK_SYNC;
@@ -71,18 +73,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === MESSAGE_ACTIONS.syncUrls) {
-    const normalizedUrls = Array.isArray(message.urls)
-      ? Array.from(new Set(message.urls.map(syncConfig.normalizeHostname).filter(Boolean)))
-      : [];
+    /** @type {Record<string, any>} */
+    const storageData = {};
+    
+    if (Array.isArray(message.urls)) {
+        storageData[STORAGE_KEYS.blockedSites] = Array.from(
+            new Set(message.urls.map(syncConfig.normalizeHostname).filter(Boolean))
+        );
+    }
 
-    const storageData = { [STORAGE_KEYS.blockedSites]: normalizedUrls };
     if (message.activeSession !== undefined) {
         storageData.activeSession = message.activeSession;
     }
 
-    chrome.storage.local.set(storageData, () => {
-      if (DEBUG_MODE) console.log('URLs synced from dashboard:', normalizedUrls.length);
-    });
+    if (Object.keys(storageData).length > 0) {
+        chrome.storage.local.set(storageData, () => {
+            if (DEBUG_MODE) console.log('URLs/Session synced from dashboard');
+        });
+    }
     return;
   }
 

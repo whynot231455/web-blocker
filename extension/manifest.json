@@ -38,6 +38,8 @@
         "<all_urls>"
       ],
       "js": [
+        "lib/config.js",
+        "lib/url-utils.js",
         "lib/sync-constants.js",
         "content/content.js"
       ],
@@ -48,6 +50,8 @@
         "<all_urls>"
       ],
       "js": [
+        "lib/config.js",
+        "lib/url-utils.js",
         "lib/sync-constants.js",
         "content/dashboard-sync.js"
       ],

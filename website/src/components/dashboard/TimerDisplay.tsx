@@ -9,7 +9,11 @@ interface TimerDisplayProps {
 }
 
 export function TimerDisplay({ startTime, targetDurationMinutes, onComplete }: TimerDisplayProps) {
-  const [timeLeft, setTimeLeft] = useState<number>(targetDurationMinutes * 60);
+  const [timeLeft, setTimeLeft] = useState<number>(() => {
+    const start = new Date(startTime).getTime();
+    const targetEnd = start + targetDurationMinutes * 60 * 1000;
+    return Math.max(0, Math.floor((targetEnd - Date.now()) / 1000));
+  });
 
   useEffect(() => {
     const start = new Date(startTime).getTime();
