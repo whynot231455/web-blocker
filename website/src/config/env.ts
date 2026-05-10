@@ -22,6 +22,11 @@ export const env = {
 
 // Server-side validation
 if (typeof window === 'undefined') {
-    if (!env.supabase.url) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
-    if (!env.supabase.anonKey) throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    if (!env.supabase.url || !env.supabase.anonKey) {
+        console.warn('\x1b[33m%s\x1b[0m', '────────────────────────────────────────────────────────────────────────────────');
+        console.warn('\x1b[33m%s\x1b[0m', '⚠️  WARNING: SUPABASE ENVIRONMENT VARIABLES ARE MISSING');
+        console.warn('\x1b[33m%s\x1b[0m', '   The build will continue, but the application will not function correctly');
+        console.warn('\x1b[33m%s\x1b[0m', '   until NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set.');
+        console.warn('\x1b[33m%s\x1b[0m', '────────────────────────────────────────────────────────────────────────────────');
+    }
 }
