@@ -2,10 +2,10 @@
   "extensionId": "keeojclinjkpflkdkmbhpmnfebkjoojl",
   "dashboardMetaName": "ctrl-blck-dashboard",
   "dashboardOrigins": [
-    "http://localhost:3000",
-    "https://ctrl-blck.vercel.app"
+    "https://ctrl-blck.vercel.app",
+    "http://localhost:3000"
   ],
-  "defaultDashboardOrigin": "http://localhost:3000",
+  "defaultDashboardOrigin": "https://ctrl-blck.vercel.app",
   "dashboardPaths": {
     "login": "/login",
     "dashboard": "/dashboard"

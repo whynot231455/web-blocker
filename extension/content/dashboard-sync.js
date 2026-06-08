@@ -30,6 +30,17 @@ if (!syncConfig) {
     const hasDashboardMarker = Boolean(document.querySelector(`meta[name="${dashboardMetaName}"]`));
 
     if (isKnownOrigin || hasDashboardMarker) {
+        // Set DOM dataset marker to signal that the extension is installed
+        document.documentElement.dataset.ctrlBlckInstalled = 'true';
+
+        // Notify webpage via custom event in case it is already listening
+        window.dispatchEvent(new CustomEvent('ctrl-blck-pong', { detail: { installed: true } }));
+
+        // Listen for ping events from the webpage and reply with pong
+        window.addEventListener('ctrl-blck-ping', () => {
+            window.dispatchEvent(new CustomEvent('ctrl-blck-pong', { detail: { installed: true } }));
+        });
+
         let lastDashboardUpdate = 0;
         const DEBUG = syncConfig.debugMode;
 

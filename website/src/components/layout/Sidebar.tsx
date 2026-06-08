@@ -29,13 +29,9 @@ export const Sidebar: React.FC = () => {
     >
       {/* Hamburger */}
       <div className="flex items-center px-5 h-20 border-b-4 border-black">
-        <button
-          onClick={() => setIsPinned(!isPinned)}
-          className="w-11 h-11 flex items-center justify-center border-2 border-black bg-white hover:bg-black shadow-[3px_3px_0px_#000] active:shadow-none active:translate-x-[1.5px] active:translate-y-[1.5px] transition-all shrink-0 overflow-hidden"
-          aria-label="Toggle menu"
-        >
+        <div className="w-11 h-11 flex items-center justify-center shrink-0">
           <Image src="/icons/logopic1-48.png" alt="Control Block Logo" width={32} height={32} className="object-contain" unoptimized />
-        </button>
+        </div>
         {isExpanded && (
           <span className="ml-4 text-[12px] font-black tracking-widest whitespace-nowrap overflow-hidden">
             CTRL+BLCK

@@ -140,6 +140,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 /**
+ * Handles external messages from the CTRL+BLCK website (ctrl-blck.vercel.app).
+ * Used for extension detection — the website sends a 'ping' to verify the
+ * extension is installed, regardless of the extension's assigned ID.
+ * @param {any} message
+ * @param {chrome.runtime.MessageSender} sender
+ * @param {function} sendResponse
+ */
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  if (message?.action === 'ping') {
+    sendResponse({ installed: true });
+  }
+});
+
+/**
  * @typedef {Object} SupabaseSession
  * @property {string} access_token
  * @property {string} user_id

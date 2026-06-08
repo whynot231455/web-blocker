@@ -50,9 +50,6 @@
         "<all_urls>"
       ],
       "js": [
-        "lib/config.js",
-        "lib/url-utils.js",
-        "lib/sync-constants.js",
         "content/dashboard-sync.js"
       ],
       "run_at": "document_idle"
@@ -68,5 +65,11 @@
         "<all_urls>"
       ]
     }
-  ]
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://ctrl-blck.vercel.app/*",
+      "http://localhost:3000/*"
+    ]
+  }
 }

@@ -3,8 +3,8 @@ globalThis.CTRL_BLCK_SYNC = {
     supabaseUrl: globalThis.CTRL_BLCK_CONFIG?.supabaseUrl || 'https://laovgvktsxwiieuznnlm.supabase.co',
     supabaseKey: globalThis.CTRL_BLCK_CONFIG?.supabaseKey || '',
     dashboardMetaName: 'ctrl-blck-dashboard',
-    dashboardOrigins: ['http://localhost:3000', 'https://ctrl-blck.vercel.app'],
-    defaultDashboardOrigin: 'http://localhost:3000',
+    dashboardOrigins: ['https://ctrl-blck.vercel.app', 'http://localhost:3000'],
+    defaultDashboardOrigin: 'https://ctrl-blck.vercel.app',
     dashboardPaths: {
         login: '/login',
         dashboard: '/dashboard'

@@ -7,6 +7,7 @@ import { ArrowLeft, Download, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useExtensionDetected } from '@/hooks/useExtensionDetected';
 
 const GITHUB_REPO_URL = 'https://github.com/whynot231455/web-blocker';
+const EXTENSION_ACK_KEY = 'ctrl_blck_extension_acknowledged';
 
 /**
  * Detects the user's browser to show tailored messaging.
@@ -31,8 +32,15 @@ export function ExtensionGate({ children }: { children: React.ReactNode }) {
   const { status } = useExtensionDetected();
   const browser = detectBrowser();
 
+  // ── Allow bypass if user previously acknowledged the extension ──
+  const acknowledged =
+    typeof window !== 'undefined' &&
+    window.localStorage.getItem(EXTENSION_ACK_KEY) === 'true';
+
+  const isInstalled = status === 'installed' || acknowledged;
+
   // ── Checking state ────────────────────────────────────────────────
-  if (status === 'checking') {
+  if (status === 'checking' && !acknowledged) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black" />
@@ -40,8 +48,8 @@ export function ExtensionGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // ── Extension found — render page normally ────────────────────────
-  if (status === 'installed') {
+  // ── Extension found (or acknowledged) — render page normally ──
+  if (isInstalled) {
     return <>{children}</>;
   }
 
@@ -110,12 +118,17 @@ export function ExtensionGate({ children }: { children: React.ReactNode }) {
               </a>
 
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => {
+                  // Store acknowledgment so the gate is bypassed on future visits
+                  window.localStorage.setItem(EXTENSION_ACK_KEY, 'true');
+                  // Navigate to the dashboard
+                  window.location.href = '/dashboard';
+                }}
                 className="w-full py-4 bg-white text-black border-2 border-black transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none hover:bg-gray-50 flex items-center justify-center gap-2"
                 style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.1em', boxShadow: '4px 4px 0px #000' }}
               >
                 <RefreshCw size={14} />
-                I&apos;ve Installed It — Refresh
+                I&apos;ve Installed It — Go to Dashboard
               </button>
             </>
           )}
