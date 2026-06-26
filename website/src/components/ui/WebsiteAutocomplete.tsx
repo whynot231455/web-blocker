@@ -8,6 +8,7 @@ interface WebsiteAutocompleteProps {
   onChange: (value: string) => void;
   onSelect: (domain: string) => void;
   error?: string;
+  disabled?: boolean;
 }
 
 export const WebsiteAutocomplete: React.FC<WebsiteAutocompleteProps> = ({
@@ -15,6 +16,7 @@ export const WebsiteAutocomplete: React.FC<WebsiteAutocompleteProps> = ({
   onChange,
   onSelect,
   error,
+  disabled = false,
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -32,6 +34,11 @@ export const WebsiteAutocomplete: React.FC<WebsiteAutocompleteProps> = ({
   }, [value]);
 
   useEffect(() => {
+    if (disabled) {
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+      return;
+    }
     if (value.trim().length > 0) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowSuggestions(suggestions.length > 0);
@@ -39,7 +46,7 @@ export const WebsiteAutocomplete: React.FC<WebsiteAutocompleteProps> = ({
       setShowSuggestions(false);
     }
     setSelectedIndex(-1);
-  }, [value, suggestions.length]);
+  }, [value, suggestions.length, disabled]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -52,6 +59,7 @@ export const WebsiteAutocomplete: React.FC<WebsiteAutocompleteProps> = ({
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (disabled) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : prev));
@@ -75,14 +83,19 @@ export const WebsiteAutocomplete: React.FC<WebsiteAutocompleteProps> = ({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        onFocus={() => value.trim().length > 0 && setShowSuggestions(true)}
+        onFocus={() => {
+          if (!disabled && value.trim().length > 0) {
+            setShowSuggestions(true);
+          }
+        }}
         error={error}
         icon={<Search size={18} />}
         autoFocus
         autoComplete="off"
+        disabled={disabled}
       />
 
-      {showSuggestions && (
+      {showSuggestions && !disabled && (
         <div className="relative z-10 w-full mt-4 bg-white border-2 border-black shadow-[6px_6px_0px_#000]">
           <div className="bg-black text-white px-3 py-1 text-[8px] font-bold uppercase tracking-widest flex justify-between items-center">
             <span>Suggestions</span>

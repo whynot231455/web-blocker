@@ -18,7 +18,7 @@ export default function ConstructionPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center bg-white p-4"
+      className="theme-static-light min-h-screen flex items-center justify-center bg-white p-4"
       style={{ fontFamily: "'Press Start 2P', cursive" }}
     >
       <div

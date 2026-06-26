@@ -25,6 +25,9 @@ if (!syncConfig) {
         messageActions
     } = syncConfig;
     const GUEST_FOCUS_SESSIONS_KEY = 'guest_focus_sessions';
+    const LAST_SYNC_STATUS_KEY = 'lastSyncStatus';
+    const SYNC_STATUS_REQUEST_EVENT = 'ctrl-blck-sync-status-request';
+    const SYNC_STATUS_RESPONSE_EVENT = 'ctrl-blck-sync-status-response';
 
     const isKnownOrigin = dashboardOrigins.includes(window.location.origin);
     const hasDashboardMarker = Boolean(document.querySelector(`meta[name="${dashboardMetaName}"]`));
@@ -181,6 +184,59 @@ if (!syncConfig) {
             }
         }
 
+        async function publishSyncStatus() {
+            try {
+                const {
+                    [storageKeys.blockedSites]: urls,
+                    [storageKeys.supabaseSession]: supabaseSession,
+                    [LAST_SYNC_STATUS_KEY]: lastSyncStatus,
+                    isGuest,
+                    activeSession
+                } = await chrome.storage.local.get([
+                    storageKeys.blockedSites,
+                    storageKeys.supabaseSession,
+                    LAST_SYNC_STATUS_KEY,
+                    'isGuest',
+                    'activeSession'
+                ]);
+
+                const blockedSiteCount = Array.isArray(urls) ? urls.length : 0;
+                const state = lastSyncStatus?.state || (supabaseSession ? 'synced' : isGuest ? 'guest_local' : 'not_authenticated');
+
+                window.dispatchEvent(new CustomEvent(SYNC_STATUS_RESPONSE_EVENT, {
+                    detail: {
+                        installed: true,
+                        state,
+                        isGuest: isGuest === true,
+                        hasSession: Boolean(supabaseSession),
+                        blockedSiteCount,
+                        lastSyncedAt: lastSyncStatus?.lastSyncedAt || null,
+                        error: lastSyncStatus?.error || null,
+                        activeSession: activeSession?.url
+                            ? {
+                                url: syncConfig.normalizeHostname(activeSession.url) || activeSession.url,
+                                start_time: activeSession.start_time || null,
+                                target_duration: activeSession.target_duration || null
+                            }
+                            : null
+                    }
+                }));
+            } catch (error) {
+                window.dispatchEvent(new CustomEvent(SYNC_STATUS_RESPONSE_EVENT, {
+                    detail: {
+                        installed: true,
+                        state: 'error',
+                        isGuest: false,
+                        hasSession: false,
+                        blockedSiteCount: 0,
+                        lastSyncedAt: null,
+                        error: error instanceof Error ? error.message : 'Unable to read extension sync status',
+                        activeSession: null
+                    }
+                }));
+            }
+        }
+
         async function syncExtensionToDashboard() {
             try {
                 if (Date.now() - lastDashboardUpdate < 1000) {
@@ -260,6 +316,7 @@ if (!syncConfig) {
 
         syncDashboardToExtension();
         void syncExtensionToDashboard();
+        void publishSyncStatus();
 
         window.addEventListener('storage', event => {
             if (
@@ -310,6 +367,10 @@ if (!syncConfig) {
             }
         });
 
+        window.addEventListener(SYNC_STATUS_REQUEST_EVENT, () => {
+            void publishSyncStatus();
+        });
+
         // ctrl-blck-ui-refresh: fired internally by syncExtensionToDashboard() when extension
         // state changes. Only refreshes the dashboard UI — does NOT re-sync to the extension,
         // which would restart the loop.
@@ -324,6 +385,18 @@ if (!syncConfig) {
         chrome.storage.onChanged.addListener((changes, namespace) => {
             if (namespace === 'local' && (changes[storageKeys.blockedSites] || changes.isGuest)) {
                 void syncExtensionToDashboard();
+            }
+            if (
+                namespace === 'local' &&
+                (
+                    changes[storageKeys.blockedSites] ||
+                    changes[storageKeys.supabaseSession] ||
+                    changes[LAST_SYNC_STATUS_KEY] ||
+                    changes.isGuest ||
+                    changes.activeSession
+                )
+            ) {
+                void publishSyncStatus();
             }
         });
 

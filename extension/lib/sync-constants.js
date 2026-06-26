@@ -28,7 +28,9 @@ globalThis.CTRL_BLCK_SYNC = {
         deleteSiteFromSupabase: 'deleteSiteFromSupabase',
         clearSitesFromSupabase: 'clearSitesFromSupabase',
         triggerDashboardRefresh: 'triggerDashboardRefresh',
-        syncSettings: 'syncSettings'
+        syncSettings: 'syncSettings',
+        getSyncStatus: 'getSyncStatus',
+        syncStatusUpdated: 'syncStatusUpdated'
     },
     /**
      * @param {string} url

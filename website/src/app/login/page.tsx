@@ -40,7 +40,7 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center bg-white"
+      className="theme-static-light min-h-screen flex items-center justify-center bg-white"
       style={{ fontFamily: "'Press Start 2P', cursive" }}
     >
       <div

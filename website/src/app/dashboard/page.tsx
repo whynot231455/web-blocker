@@ -62,7 +62,7 @@ export default function DashboardPage() {
         <AddUrlModal
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
-          onAdd={async (url) => { await addSite(url); }}
+          onAdd={addSite}
         />
       </div>
     </ExtensionGate>

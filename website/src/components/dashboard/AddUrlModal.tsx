@@ -14,11 +14,23 @@ interface AddUrlModalProps {
 export const AddUrlModal: React.FC<AddUrlModalProps> = ({ isOpen, onClose, onAdd }) => {
   const [url, setUrl] = React.useState('');
   const [error, setError] = React.useState('');
+  const [success, setSuccess] = React.useState('');
+  const [isPending, setIsPending] = React.useState(false);
+  const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleaned = sanitizeUrl(url);
+    if (isPending || success) return;
 
+    const cleaned = sanitizeUrl(url);
     if (!cleaned) {
       setError('Website URL is required');
       return;
@@ -29,20 +41,38 @@ export const AddUrlModal: React.FC<AddUrlModalProps> = ({ isOpen, onClose, onAdd
     }
 
     try {
+      setIsPending(true);
+      setError('');
+      setSuccess('');
+
       const result = await onAdd(cleaned);
       if (result) {
-        setUrl('');
-        setError('');
-        onClose();
+        setSuccess('Blocking it right now! 🛑');
+        closeTimerRef.current = setTimeout(() => {
+          closeTimerRef.current = null;
+          setUrl('');
+          setError('');
+          setSuccess('');
+          setIsPending(false);
+          onClose();
+        }, 1500);
       } else {
         setError('Failed to add site. It may already be in your list.');
+        setIsPending(false);
       }
     } catch {
       setError('An unexpected error occurred. Please try again.');
+      setIsPending(false);
     }
   };
 
   const handleClose = () => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setIsPending(false);
+    setSuccess('');
     setUrl('');
     setError('');
     onClose();
@@ -70,10 +100,22 @@ export const AddUrlModal: React.FC<AddUrlModalProps> = ({ isOpen, onClose, onAdd
       <form onSubmit={handleSubmit} className="space-y-8">
         <WebsiteAutocomplete
           value={url}
-          onChange={(val) => { setUrl(val); setError(''); }}
+          onChange={(val) => {
+            setUrl(val);
+            setError('');
+          }}
           onSelect={handleSelect}
           error={error}
+          disabled={isPending || !!success}
         />
+
+        {success && (
+          <div className="bg-green-200 border-2 border-black shadow-[4px_4px_0px_#000] px-4 py-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-green-950">
+              {success}
+            </p>
+          </div>
+        )}
 
         <div className="flex items-start gap-3 p-3 bg-blue-50 border-2 border-blue-200">
           <Info size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
@@ -88,6 +130,7 @@ export const AddUrlModal: React.FC<AddUrlModalProps> = ({ isOpen, onClose, onAdd
             onClick={handleClose}
             type="button"
             className="w-full"
+            disabled={isPending || !!success}
           >
             Cancel
           </Button>
@@ -95,6 +138,8 @@ export const AddUrlModal: React.FC<AddUrlModalProps> = ({ isOpen, onClose, onAdd
             variant="primary"
             type="submit"
             className="w-full flex items-center justify-center gap-2"
+            isLoading={isPending}
+            disabled={!!success}
           >
             <Check size={16} />
             Add to List

@@ -27,6 +27,10 @@
     "triggerSync": "triggerSync",
     "addSiteToSupabase": "addSiteToSupabase",
     "deleteSiteFromSupabase": "deleteSiteFromSupabase",
-    "clearSitesFromSupabase": "clearSitesFromSupabase"
+    "clearSitesFromSupabase": "clearSitesFromSupabase",
+    "triggerDashboardRefresh": "triggerDashboardRefresh",
+    "syncSettings": "syncSettings",
+    "getSyncStatus": "getSyncStatus",
+    "syncStatusUpdated": "syncStatusUpdated"
   }
 }

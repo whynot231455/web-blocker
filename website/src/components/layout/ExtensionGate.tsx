@@ -104,18 +104,16 @@ export function ExtensionGate({ children }: { children: React.ReactNode }) {
         <div className="space-y-4">
           {!isUnsupported && (
             <>
-              <a
-                href={GITHUB_REPO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/install"
                 className="block w-full py-4 bg-black text-white border-2 border-black text-center uppercase tracking-widest transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none hover:bg-gray-900"
                 style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.1em', boxShadow: '4px 4px 0px #000' }}
               >
                 <span className="inline-flex items-center justify-center gap-2">
                   <Download size={14} />
-                  Install from GitHub
+                  Install Extension
                 </span>
-              </a>
+              </Link>
 
               <button
                 onClick={() => {

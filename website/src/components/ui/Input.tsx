@@ -30,6 +30,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               focus:shadow-none focus:translate-x-[2px] focus:translate-y-[2px] 
               outline-none transition-all 
               placeholder:text-gray-400 placeholder:uppercase placeholder:text-[10px]
+              disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0
               ${error ? 'border-red-500 shadow-[4px_4px_0px_#ef4444]' : ''}
               ${className}
             `}

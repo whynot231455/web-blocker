@@ -13,7 +13,8 @@ const STORAGE_KEYS = {
   supabaseSession: syncConfig.storageKeys.supabaseSession,
   dashboardOrigin: syncConfig.storageKeys.dashboardOrigin,
   blockedSites: syncConfig.storageKeys.blockedSites,
-  guestFlag: syncConfig.storageKeys.guestFlag
+  guestFlag: syncConfig.storageKeys.guestFlag,
+  lastSyncStatus: 'lastSyncStatus'
 };
 
 const MESSAGE_ACTIONS = syncConfig.messageActions;
@@ -38,7 +39,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.set(
       {
         [STORAGE_KEYS.supabaseSession]: message.session,
-        isGuest: false
+        isGuest: false,
+        [STORAGE_KEYS.lastSyncStatus]: createSyncStatus('synced')
       },
       () => {
         if (DEBUG_MODE) console.log('Session saved, triggering initial sync');
@@ -66,7 +68,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === MESSAGE_ACTIONS.syncGuestStatus) {
-    chrome.storage.local.set({ isGuest: message.isGuest }, () => {
+    chrome.storage.local.set({
+      isGuest: message.isGuest,
+      [STORAGE_KEYS.lastSyncStatus]: createSyncStatus(message.isGuest ? 'guest_local' : 'not_authenticated')
+    }, () => {
       if (DEBUG_MODE) console.log('Guest status saved:', message.isGuest);
     });
     return;
@@ -87,6 +92,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (Object.keys(storageData).length > 0) {
+        storageData[STORAGE_KEYS.lastSyncStatus] = createSyncStatus(
+          message.isGuest ? 'guest_local' : 'synced',
+          {
+            blockedSiteCount: Array.isArray(storageData[STORAGE_KEYS.blockedSites])
+              ? storageData[STORAGE_KEYS.blockedSites].length
+              : undefined
+          }
+        );
         chrome.storage.local.set(storageData, () => {
             if (DEBUG_MODE) console.log('URLs/Session synced from dashboard');
         });
@@ -120,6 +133,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === MESSAGE_ACTIONS.triggerSync) {
     syncFromSupabase().then(res => sendResponse?.(res));
+    return true;
+  }
+
+  if (message.action === MESSAGE_ACTIONS.getSyncStatus) {
+    getSyncStatus().then(res => sendResponse?.(res));
     return true;
   }
 
@@ -181,6 +199,63 @@ async function getSession() {
 }
 
 /**
+ * @param {'synced' | 'guest_local' | 'not_authenticated' | 'error'} state
+ * @param {{ error?: string | null; blockedSiteCount?: number }} [options]
+ */
+function createSyncStatus(state, options = {}) {
+  return {
+    state,
+    lastSyncedAt: new Date().toISOString(),
+    error: options.error || null,
+    blockedSiteCount: options.blockedSiteCount
+  };
+}
+
+/**
+ * @param {'synced' | 'guest_local' | 'not_authenticated' | 'error'} state
+ * @param {{ error?: string | null; blockedSiteCount?: number }} [options]
+ */
+async function saveSyncStatus(state, options = {}) {
+  const nextStatus = createSyncStatus(state, options);
+  await chrome.storage.local.set({ [STORAGE_KEYS.lastSyncStatus]: nextStatus });
+  return nextStatus;
+}
+
+async function getSyncStatus() {
+  const result = await chrome.storage.local.get([
+    STORAGE_KEYS.blockedSites,
+    STORAGE_KEYS.supabaseSession,
+    STORAGE_KEYS.lastSyncStatus,
+    'isGuest',
+    'activeSession'
+  ]);
+
+  const urls = Array.isArray(result[STORAGE_KEYS.blockedSites]) ? result[STORAGE_KEYS.blockedSites] : [];
+  const lastStatus = result[STORAGE_KEYS.lastSyncStatus] || null;
+  const isGuest = result.isGuest === true;
+  const hasSession = Boolean(result[STORAGE_KEYS.supabaseSession]);
+  const activeSession = result.activeSession || null;
+  const state = lastStatus?.state || (hasSession ? 'synced' : isGuest ? 'guest_local' : 'not_authenticated');
+
+  return {
+    installed: true,
+    state,
+    isGuest,
+    hasSession,
+    blockedSiteCount: urls.length,
+    lastSyncedAt: lastStatus?.lastSyncedAt || null,
+    error: lastStatus?.error || null,
+    activeSession: activeSession?.url
+      ? {
+          url: normalizeHostname(activeSession.url) || activeSession.url,
+          start_time: activeSession.start_time || null,
+          target_duration: activeSession.target_duration || null
+        }
+      : null
+  };
+}
+
+/**
  * @param {Object} [options]
  * @param {boolean} [options.clearGuestMode]
  * @param {boolean} [options.clearBlockedSites]
@@ -203,6 +278,11 @@ async function clearExtensionSessionState(options = {}) {
   if (clearBlockedSites) {
     nextState[STORAGE_KEYS.blockedSites] = [];
   }
+
+  nextState[STORAGE_KEYS.lastSyncStatus] = createSyncStatus(
+    clearGuestMode ? 'not_authenticated' : 'guest_local',
+    { blockedSiteCount: clearBlockedSites ? 0 : undefined }
+  );
 
   if (Object.keys(nextState).length > 0) {
     await chrome.storage.local.set(nextState);
@@ -231,6 +311,7 @@ async function syncFromSupabase() {
     const session = await getSession();
     if (!session || !session.access_token || !session.user_id) {
       if (DEBUG_MODE) console.log('No active session, skipping sync');
+      await saveSyncStatus('not_authenticated', { error: 'Not authenticated' });
       return { success: false, error: 'Not authenticated' };
     }
 
@@ -238,6 +319,7 @@ async function syncFromSupabase() {
     if (isTokenExpired(session.access_token)) {
       console.warn('Supabase token expired, clearing stale session');
       await clearExtensionSessionState();
+      await saveSyncStatus('error', { error: 'Token expired - re-sync from dashboard' });
       await notifyDashboardToClearSession({ clearGuestData: false });
       return { success: false, error: 'Token expired — re-sync from dashboard' };
     }
@@ -260,6 +342,7 @@ async function syncFromSupabase() {
     if (sitesResponse.status === 401 || sessionsResponse.status === 401) {
       console.warn('Supabase returned 401, clearing stale session');
       await clearExtensionSessionState();
+      await saveSyncStatus('error', { error: 'Token rejected - re-sync from dashboard' });
       await notifyDashboardToClearSession({ clearGuestData: false });
       return { success: false, error: 'Token rejected — re-sync from dashboard' };
     }
@@ -286,7 +369,10 @@ async function syncFromSupabase() {
 
     await chrome.storage.local.set({ 
         [STORAGE_KEYS.blockedSites]: allBlockedUrls,
-        activeSession: activeSession
+        activeSession: activeSession,
+        [STORAGE_KEYS.lastSyncStatus]: createSyncStatus('synced', {
+          blockedSiteCount: allBlockedUrls.length
+        })
     });
 
     if (DEBUG_MODE) console.log(`Synced ${allBlockedUrls.length} blocked sites from Supabase`);
@@ -296,6 +382,9 @@ async function syncFromSupabase() {
     return { success: true, count: allBlockedUrls.length };
   } catch (error) {
     console.error('Error during syncFromSupabase:', error);
+    await saveSyncStatus('error', {
+      error: error instanceof Error ? error.message : 'Sync failed'
+    });
     return { success: false, error: error instanceof Error ? error.message : 'Sync failed' };
   }
 }

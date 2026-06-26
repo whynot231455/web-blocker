@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
-import { Shield, Bell, Moon, Sliders } from 'lucide-react';
+import { Shield, Moon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { ExtensionGate } from '@/components/layout/ExtensionGate';
 import { useRouter } from 'next/navigation';
@@ -30,9 +30,7 @@ export default function SettingsPage() {
 
   const sections = [
     { title: 'Privacy & Security', icon: Shield, description: 'Manage your data and account security.' },
-    { title: 'Notifications', icon: Bell, description: 'Configure how you want to be alerted.' },
     { title: 'Appearance', icon: Moon, description: 'Switch between light and dark modes.' },
-    { title: 'Advanced', icon: Sliders, description: 'Fine-tune your blocking algorithms.' },
   ];
 
   return (
@@ -59,7 +57,18 @@ export default function SettingsPage() {
                     <p className="text-sm text-gray-400">{section.description}</p>
                   </div>
                 </div>
-                <Button variant="ghost">Manage</Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    if (section.title === 'Privacy & Security') {
+                      router.push('/settings/privacy-security');
+                    } else if (section.title === 'Appearance') {
+                      router.push('/settings/appearance');
+                    }
+                  }}
+                >
+                  Manage
+                </Button>
               </div>
             ))}
           </div>
@@ -89,7 +98,11 @@ export default function SettingsPage() {
               <p className="max-w-md text-blue-100 mb-4 text-sm">
                 Ensure your blocked sites are synced across all your devices using our seamless Supabase integration.
               </p>
-              <Button variant="secondary" className="text-blue-600 font-bold border-none shadow-md">
+              <Button
+                variant="secondary"
+                className="text-blue-600 font-bold border-none shadow-md"
+                onClick={() => router.push('/settings/sync-status')}
+              >
                 View Sync Status
               </Button>
             </div>
