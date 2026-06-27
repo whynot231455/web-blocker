@@ -104,6 +104,47 @@ export default function InstallPage() {
           </p>
         </div>
 
+        {/* Live Detector Panel */}
+        <div className="mb-10 border-4 border-black p-6 text-center">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <span className={`w-3 h-3 border border-black rounded-full ${
+              status === 'installed' ? 'bg-[#10B981] animate-pulse' : 'bg-[#FF9F1C] animate-pulse'
+            }`} />
+            <h4 className="text-[10px] font-black uppercase tracking-widest">
+              Live Detector
+            </h4>
+          </div>
+
+          {status === 'checking' && (
+            <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest animate-pulse">
+              PROBING EXTENSION STATUS...
+            </p>
+          )}
+
+          {status === 'not_installed' && (
+            <p className="text-[8px] font-bold text-gray-600 uppercase tracking-widest">
+              WAITING FOR LOADED UNPACKED EXTENSION...
+            </p>
+          )}
+
+          {status === 'installed' && (
+            <div className="space-y-4">
+              <div className="bg-[#D1FAE5] border-2 border-black text-[#065F46] p-4 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[4px_4px_0px_#000]">
+                <CheckCircle size={16} />
+                You have already installed the extension
+              </div>
+              <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest animate-pulse">
+                Redirecting to the main dashboard now
+              </p>
+              <Link href="/dashboard" className="block w-full">
+                <button className="w-full py-4 text-[10px] font-bold uppercase tracking-widest bg-black text-white border-2 border-black shadow-[4px_4px_0px_#000] hover:bg-gray-800 cursor-pointer">
+                  Go to Dashboard Now
+                </button>
+              </Link>
+            </div>
+          )}
+        </div>
+
         {/* Step 0: Download Zip */}
         <div className="mb-10 text-center">
           <p className="text-[10px] font-bold uppercase tracking-widest mb-4">
@@ -196,47 +237,6 @@ export default function InstallPage() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Live Detector Panel */}
-        <div className="mt-10 border-4 border-black p-6 text-center">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <span className={`w-3 h-3 border border-black rounded-full ${
-              status === 'installed' ? 'bg-[#10B981] animate-pulse' : 'bg-[#FF9F1C] animate-pulse'
-            }`} />
-            <h4 className="text-[10px] font-black uppercase tracking-widest">
-              Live Detector
-            </h4>
-          </div>
-
-          {status === 'checking' && (
-            <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest animate-pulse">
-              PROBING EXTENSION STATUS...
-            </p>
-          )}
-
-          {status === 'not_installed' && (
-            <p className="text-[8px] font-bold text-gray-600 uppercase tracking-widest">
-              WAITING FOR LOADED UNPACKED EXTENSION...
-            </p>
-          )}
-
-          {status === 'installed' && (
-            <div className="space-y-4">
-              <div className="bg-[#D1FAE5] border-2 border-black text-[#065F46] p-4 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[4px_4px_0px_#000]">
-                <CheckCircle size={16} />
-                EXTENSION DETECTED SUCCESSFULLY!
-              </div>
-              <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest animate-pulse">
-                Redirecting to dashboard in {redirectCountdown}...
-              </p>
-              <Link href="/dashboard" className="block w-full">
-                <button className="w-full py-4 text-[10px] font-bold uppercase tracking-widest bg-black text-white border-2 border-black shadow-[4px_4px_0px_#000] hover:bg-gray-800 cursor-pointer">
-                  Go to Dashboard Now
-                </button>
-              </Link>
-            </div>
-          )}
         </div>
 
       </div>

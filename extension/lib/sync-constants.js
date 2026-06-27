@@ -14,6 +14,8 @@ globalThis.CTRL_BLCK_SYNC = {
         supabaseSession: 'supabase_session',
         dashboardOrigin: 'dashboard_origin',
         blockedSites: 'urls',
+        blockedSiteSchedules: 'blocked_site_schedules',
+        blockedSitesSignature: 'ctrl_blck_sites_signature',
         guestFlag: 'ctrl_blck_guest',
         guestSites: 'ctrl_blck_sites'
     },
@@ -30,7 +32,8 @@ globalThis.CTRL_BLCK_SYNC = {
         triggerDashboardRefresh: 'triggerDashboardRefresh',
         syncSettings: 'syncSettings',
         getSyncStatus: 'getSyncStatus',
-        syncStatusUpdated: 'syncStatusUpdated'
+        syncStatusUpdated: 'syncStatusUpdated',
+        requestDashboardSync: 'requestDashboardSync'
     },
     /**
      * @param {string} url

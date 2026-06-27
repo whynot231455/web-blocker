@@ -42,6 +42,19 @@ function getInternalPageType(url) {
 const defaultDashboardOrigin = syncConfig.defaultDashboardOrigin;
 const dashboardPaths = syncConfig.dashboardPaths;
 
+/**
+ * @param {string[]} urls
+ */
+function buildBlockedSitesSignature(urls) {
+    return Array.from(new Set(
+        (Array.isArray(urls) ? urls : [])
+            .map(url => syncConfig.normalizeHostname(url))
+            .filter(Boolean)
+    ))
+        .sort()
+        .join('|');
+}
+
 // Global variables
 /** @type {HTMLElement | null} */
 let add_button;
@@ -86,6 +99,9 @@ document.addEventListener('DOMContentLoaded', function () {
     void updateSyncStatus();
     void startTimerLoop();
 
+    // Request a fresh sync from any open dashboard tabs so the URL list is up to date
+    chrome.runtime.sendMessage({ action: syncConfig.messageActions.requestDashboardSync }).catch(() => {});
+
     // Event listener for delete functionality
     document.addEventListener("click", async function (event) {
         const target = /** @type {HTMLElement} */ (event.target);
@@ -103,7 +119,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Remove from storage - compare by hostname
                 const urls = await getURLs();
                 const updatedURLs = urls.filter((/** @type {string} */ url) => syncConfig.normalizeHostname(url) !== hostname);
-                await chrome.storage.local.set({ [storageKeys.blockedSites]: updatedURLs });
+                await chrome.storage.local.set({
+                    [storageKeys.blockedSites]: updatedURLs,
+                    [storageKeys.blockedSitesSignature]: buildBlockedSitesSignature(updatedURLs)
+                });
 
                 // Sync with Supabase if authenticated
                 // Note: content.js re-evaluates blocking via chrome.storage.onChanged.
@@ -121,6 +140,14 @@ async function updateSyncStatus() {
         storageKeys.supabaseSession,
         'isGuest'
     ]);
+    const activeOrigin = await getDashboardOrigin();
+    const activeOriginLabel = (() => {
+        try {
+            return new URL(activeOrigin).host;
+        } catch {
+            return activeOrigin;
+        }
+    })();
     const subHeading = document.querySelector('.sub_heading');
     if (subHeading) {
         // Clear existing sync-status if any
@@ -134,14 +161,14 @@ async function updateSyncStatus() {
 
         if (supabaseSession) {
             statusDiv.style.color = '#4CAF50';
-            statusDiv.textContent = '● Synced with Dashboard';
+            statusDiv.textContent = `● Synced with Dashboard (${activeOriginLabel})`;
         } else if (isGuest) {
             statusDiv.className = 'sync-status guest-mode';
             statusDiv.style.color = '#777';
-            statusDiv.textContent = '● Guest Mode (Local Storage)';
+            statusDiv.textContent = `● Guest Mode (Local Storage, ${activeOriginLabel})`;
         } else {
             statusDiv.style.color = '#f44336';
-            statusDiv.textContent = '● Not Synchronized';
+            statusDiv.textContent = `● Not Synchronized (${activeOriginLabel})`;
         }
         subHeading.appendChild(statusDiv);
     }
@@ -168,13 +195,7 @@ async function configureDashboardLink() {
         return;
     }
 
-    const { [storageKeys.supabaseSession]: supabaseSession, isGuest } = await chrome.storage.local.get([
-        storageKeys.supabaseSession,
-        'isGuest'
-    ]);
-    const destinationPath = supabaseSession || isGuest ? dashboardPaths.dashboard : dashboardPaths.login;
-    const destinationUrl = await buildDashboardUrl(destinationPath);
-
+    const destinationUrl = await buildDashboardUrl('/dashboard');
     dashboardLink.href = destinationUrl;
     dashboardLink.addEventListener('click', async function (event) {
         event.preventDefault();
@@ -189,18 +210,6 @@ async function initializePopup(isConfirmationScreen) {
         await configureDashboardLink();
 
         if (!isConfirmationScreen) {
-            const { [storageKeys.supabaseSession]: supabaseSession, isGuest } = await chrome.storage.local.get([
-                storageKeys.supabaseSession,
-                'isGuest'
-            ]);
-
-            if (!supabaseSession && !isGuest) {
-                const loginUrl = await buildDashboardUrl(dashboardPaths.login);
-                await chrome.tabs.create({ url: loginUrl });
-                window.close();
-                return;
-            }
-
             const currentTabURL = await getCurrentTabURL();
 
             if (currentTabURL && isInternalPage(currentTabURL)) {
@@ -271,7 +280,7 @@ function showInternalPageMessage(url) {
         editButton.className = 'edit-url-button';
         editButton.textContent = 'Edit URL List';
         editButton.addEventListener('click', function () {
-            chrome.tabs.create({ url: chrome.runtime.getURL('main.html') });
+            void buildDashboardUrl('/dashboard').then((url) => chrome.tabs.create({ url }));
             window.close();
         });
         messageDiv.appendChild(editButton);
@@ -311,58 +320,71 @@ async function loadURL() {
         const urls = await getURLs();
         if (urls && Array.isArray(urls) && list_table) {
             list_table.innerHTML = "";
-            const limitedURLs = urls.slice(0, 5);
-
-            if (limitedURLs.length === 0) {
-                const emptyLi = document.createElement('li');
-                emptyLi.className = 'empty-state';
-                emptyLi.textContent = 'No blocked sites yet';
-                emptyLi.style.textAlign = 'center';
-                emptyLi.style.color = '#999';
-                emptyLi.style.padding = '10px';
-                emptyLi.style.fontSize = '11px';
-                list_table.appendChild(emptyLi);
+            // If empty and it's our first try, retry once after a short delay
+            // to give background time to sync from dashboard tabs
+            if (urls.length === 0 && list_table.getAttribute('data-retried') !== 'true') {
+                list_table.setAttribute('data-retried', 'true');
+                await new Promise(r => setTimeout(r, 800));
+                const retryUrls = await getURLs();
+                renderUrlList(retryUrls, list_table);
                 return;
             }
-
-            limitedURLs.forEach(url => {
-                const hostname = extractHostname(url);
-                if (hostname && list_table) {
-                    const li = document.createElement('li');
-                    li.setAttribute('data-hostname', hostname);
-                    li.style.display = 'flex';
-                    li.style.alignItems = 'center';
-                    li.style.gap = '15px';
-
-                    const favicon = document.createElement('img');
-                    favicon.src = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
-                    favicon.width = 24;
-                    favicon.height = 24;
-                    favicon.addEventListener('error', function () {
-                        /** @type {any} */ (this).src = "../assets/icons/delete-icon.svg";
-                    });
-
-                    const span = document.createElement('span');
-                    const dotCount = (hostname.match(/\./g) || []).length;
-                    span.textContent = (hostname.startsWith('www.') || dotCount > 1) ? hostname : 'www.' + hostname;
-
-                    const close_icon = document.createElement('img');
-                    close_icon.src = "../assets/icons/delete-icon.svg";
-                    close_icon.className = 'delete-icon';
-                    close_icon.width = 24;
-                    close_icon.height = 24;
-                    close_icon.style.cursor = 'pointer';
-
-                    li.appendChild(favicon);
-                    li.appendChild(span);
-                    li.appendChild(close_icon);
-                    list_table.appendChild(li);
-                }
-            });
+            renderUrlList(urls, list_table);
         }
     } catch (error) {
         console.error('Error loading URLs:', error);
     }
+}
+
+function renderUrlList(urls, listTable) {
+    const limitedURLs = urls.slice(0, 5);
+
+    if (limitedURLs.length === 0) {
+        const emptyLi = document.createElement('li');
+        emptyLi.className = 'empty-state';
+        emptyLi.textContent = 'No blocked sites yet';
+        emptyLi.style.textAlign = 'center';
+        emptyLi.style.color = '#999';
+        emptyLi.style.padding = '10px';
+        emptyLi.style.fontSize = '11px';
+        listTable.appendChild(emptyLi);
+        return;
+    }
+
+    limitedURLs.forEach(url => {
+        const hostname = extractHostname(url);
+        if (hostname && listTable) {
+            const li = document.createElement('li');
+            li.setAttribute('data-hostname', hostname);
+            li.style.display = 'flex';
+            li.style.alignItems = 'center';
+            li.style.gap = '15px';
+
+            const favicon = document.createElement('img');
+            favicon.src = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+            favicon.width = 24;
+            favicon.height = 24;
+            favicon.addEventListener('error', function () {
+                /** @type {any} */ (this).src = "../assets/icons/delete-icon.svg";
+            });
+
+            const span = document.createElement('span');
+            const dotCount = (hostname.match(/\./g) || []).length;
+            span.textContent = (hostname.startsWith('www.') || dotCount > 1) ? hostname : 'www.' + hostname;
+
+            const close_icon = document.createElement('img');
+            close_icon.src = "../assets/icons/delete-icon.svg";
+            close_icon.className = 'delete-icon';
+            close_icon.width = 24;
+            close_icon.height = 24;
+            close_icon.style.cursor = 'pointer';
+
+            li.appendChild(favicon);
+            li.appendChild(span);
+            li.appendChild(close_icon);
+            listTable.appendChild(li);
+        }
+    });
 }
 
 async function add_elements() {
@@ -395,7 +417,10 @@ async function add_elements() {
         if (!storedHostnames.includes(currentHostname)) {
             const normalizedHostname = syncConfig.normalizeHostname(currentTabURL);
             const updatedURLs = [normalizedHostname, ...URL_list];
-            await chrome.storage.local.set({ [storageKeys.blockedSites]: updatedURLs });
+            await chrome.storage.local.set({
+                [storageKeys.blockedSites]: updatedURLs,
+                [storageKeys.blockedSitesSignature]: buildBlockedSitesSignature(updatedURLs)
+            });
 
             // Note: content.js re-evaluates blocking via chrome.storage.onChanged.
             // Dashboard is notified by background.js after Supabase sync completes.
@@ -488,7 +513,10 @@ async function removeAll_elements() {
             }
         }
 
-        await chrome.storage.local.set({ [storageKeys.blockedSites]: [] });
+        await chrome.storage.local.set({
+            [storageKeys.blockedSites]: [],
+            [storageKeys.blockedSitesSignature]: ''
+        });
 
         // Note: content.js re-evaluates blocking via chrome.storage.onChanged.
         // Dashboard is notified by background.js after Supabase sync completes.
@@ -511,7 +539,15 @@ async function removeAll_elements() {
 }
 
 chrome.storage.onChanged.addListener(function (_changes, namespace) {
-    if (namespace === 'local' && (_changes[storageKeys.blockedSites] || _changes.isGuest || _changes.activeSession)) {
+    if (
+        namespace === 'local' &&
+        (
+            _changes[storageKeys.blockedSites] ||
+            _changes[storageKeys.blockedSitesSignature] ||
+            _changes.isGuest ||
+            _changes.activeSession
+        )
+    ) {
         if (storageUpdateTimeout) clearTimeout(storageUpdateTimeout);
         storageUpdateTimeout = setTimeout(() => {
             loadURL();

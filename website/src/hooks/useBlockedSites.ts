@@ -1,11 +1,22 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 import { BlockedSite } from '@/types/blockedSite';
 import { SYNC_STORAGE_KEYS } from '@/config/sync';
 import { isValidDomain, sanitizeUrl } from '@/lib/url';
+import { buildBlockedSitesSignature, normalizeAccessWindow, type AccessWindow } from '@/lib/schedule';
+
+const GUEST_SITES_SIGNATURE_KEY = SYNC_STORAGE_KEYS.blockedSitesSignature;
+
+function buildSitesSignature(sites: BlockedSite[]): string {
+    return buildBlockedSitesSignature(sites);
+}
+
+function persistGuestSites(sites: BlockedSite[]) {
+    localStorage.setItem(SYNC_STORAGE_KEYS.guestSites, JSON.stringify(sites));
+    localStorage.setItem(GUEST_SITES_SIGNATURE_KEY, buildSitesSignature(sites));
+}
 
 /** Generate a stable ID for guest mode sites based on URL */
 function getStableId(url: string): string {
@@ -20,12 +31,26 @@ function getStableId(url: string): string {
     }
 }
 
+function normalizeSite(site: Partial<BlockedSite> & { createdAt?: string }): BlockedSite | null {
+    const url = sanitizeUrl(site.url || '');
+    if (!url) return null;
+
+    return {
+        id: site.id || getStableId(url),
+        url,
+        user_id: site.user_id || 'guest',
+        is_active: site.is_active !== false,
+        created_at: site.created_at || site.createdAt || new Date().toISOString(),
+        access_window: normalizeAccessWindow(site.access_window || null)
+    };
+}
+
 export const useBlockedSites = () => {
     const [sites, setSites] = useState<BlockedSite[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isMounted, setIsMounted] = useState(false);
-    const { user, isGuest, loading: authLoading } = useAuth();
+    const { isGuest, loading: authLoading } = useAuth();
     const hasFetchedRef = useRef(false);
 
     const fetchSites = useCallback(async () => {
@@ -36,43 +61,25 @@ export const useBlockedSites = () => {
             setLoading(true);
             setError(null);
 
-            if (isGuest) {
-                const localData = localStorage.getItem(SYNC_STORAGE_KEYS.guestSites);
-                const parsed = localData ? JSON.parse(localData) : [];
-                
-                // Map to ensure it follows the BlockedSite interface and has stable IDs
-                const mapped: BlockedSite[] = Array.isArray(parsed) ? parsed.map((s: Partial<BlockedSite> & { createdAt?: string }) => {
-                    const url = s.url || '';
-                    return {
-                        id: getStableId(url),
-                        url: url,
-                        user_id: s.user_id || 'guest',
-                        is_active: s.is_active !== undefined ? s.is_active : true,
-                        created_at: s.created_at || s.createdAt || new Date().toISOString()
-                    };
-                }) : [];
-
-                // De-duplicate by URL to prevent UI glitches if storage somehow gets corrupted
-                const uniqueMapped = Array.from(new Map(mapped.map(s => [s.url, s])).values());
-                setSites(uniqueMapped);
-                setLoading(false);
-                return;
-            }
-
-            if (!user) {
+            if (!isGuest) {
                 setSites([]);
                 setLoading(false);
                 return;
             }
 
-            const { data, error: dbError } = await supabase
-                .from('blocked_sites')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false });
+            const localData = localStorage.getItem(SYNC_STORAGE_KEYS.guestSites);
+            const parsed = localData ? JSON.parse(localData) : [];
 
-            if (dbError) throw dbError;
-            setSites(data ?? []);
+            const mapped: BlockedSite[] = Array.isArray(parsed)
+                ? parsed.map((s: Partial<BlockedSite> & { createdAt?: string }) => normalizeSite(s)).filter((site): site is BlockedSite => Boolean(site))
+                : [];
+
+            // De-duplicate by URL to prevent UI glitches if storage somehow gets corrupted
+            const uniqueMapped = Array.from(new Map(mapped.map(s => [s.url, s])).values());
+            setSites(uniqueMapped);
+            if (typeof window !== 'undefined') {
+                localStorage.setItem(GUEST_SITES_SIGNATURE_KEY, buildSitesSignature(uniqueMapped));
+            }
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Failed to fetch sites';
             setError(message);
@@ -80,9 +87,9 @@ export const useBlockedSites = () => {
             hasFetchedRef.current = true;
             setLoading(false);
         }
-    }, [authLoading, isGuest, user]);
+    }, [authLoading, isGuest]);
 
-    const addSite = async (rawUrl: string): Promise<BlockedSite | null> => {
+    const addSite = async (rawUrl: string, accessWindow: AccessWindow | null = null): Promise<BlockedSite | null> => {
         const url = sanitizeUrl(rawUrl);
 
         if (!isValidDomain(url)) {
@@ -90,7 +97,7 @@ export const useBlockedSites = () => {
             return null;
         }
 
-        // Check for duplicates before hitting the DB
+        // Check for duplicates before writing local guest storage
         if (sites.some(s => s.url === url)) {
             setError(`${url} is already in your block list`);
             return null;
@@ -99,34 +106,17 @@ export const useBlockedSites = () => {
         try {
             setError(null);
 
-            if (!isGuest) {
-                if (!user) throw new Error('Not authenticated');
-
-                const { data, error: dbError } = await supabase
-                    .from('blocked_sites')
-                    .insert([{ url, user_id: user.id, is_active: true }])
-                    .select()
-                    .single();
-
-                if (dbError) throw dbError;
-                setSites(prev => [data, ...prev]);
-                
-                // Notify the content script for immediate sync
-                window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
-                return data;
-            }
-
-            // Guest Mode
             const newSite: BlockedSite = {
                 id: getStableId(url),
                 url,
                 user_id: 'guest',
                 is_active: true,
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                access_window: normalizeAccessWindow(accessWindow)
             };
             const updatedSites = [newSite, ...sites];
             setSites(updatedSites);
-            localStorage.setItem(SYNC_STORAGE_KEYS.guestSites, JSON.stringify(updatedSites));
+            persistGuestSites(updatedSites);
             
             // Notify the content script for immediate sync
             window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
@@ -138,23 +128,34 @@ export const useBlockedSites = () => {
         }
     };
 
+    const updateSiteSchedule = async (id: string, accessWindow: AccessWindow | null): Promise<BlockedSite | null> => {
+        try {
+            setError(null);
+
+            const normalizedWindow = normalizeAccessWindow(accessWindow);
+            const updatedSites = sites.map(site =>
+                site.id === id ? { ...site, access_window: normalizedWindow } : site
+            );
+            const target = updatedSites.find(site => site.id === id) || null;
+            setSites(updatedSites);
+            persistGuestSites(updatedSites);
+
+            window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
+            return target;
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to update site schedule';
+            setError(message);
+            return null;
+        }
+    };
+
     const deleteSite = async (id: string): Promise<void> => {
         try {
             setError(null);
 
-            if (isGuest) {
-                const updatedSites = sites.filter(s => s.id !== id);
-                setSites(updatedSites);
-                localStorage.setItem(SYNC_STORAGE_KEYS.guestSites, JSON.stringify(updatedSites));
-            } else {
-                const { error: dbError } = await supabase
-                    .from('blocked_sites')
-                    .delete()
-                    .eq('id', id);
-
-                if (dbError) throw dbError;
-                setSites(prev => prev.filter(s => s.id !== id));
-            }
+            const updatedSites = sites.filter(s => s.id !== id);
+            setSites(updatedSites);
+            persistGuestSites(updatedSites);
 
             // Notify the content script for immediate sync
             window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
@@ -168,23 +169,11 @@ export const useBlockedSites = () => {
         try {
             setError(null);
 
-            if (isGuest) {
-                const updatedSites = sites.map(s =>
-                    s.id === id ? { ...s, is_active: !currentStatus } : s
-                );
-                setSites(updatedSites);
-                localStorage.setItem(SYNC_STORAGE_KEYS.guestSites, JSON.stringify(updatedSites));
-            } else {
-                const { error: dbError } = await supabase
-                    .from('blocked_sites')
-                    .update({ is_active: !currentStatus })
-                    .eq('id', id);
-
-                if (dbError) throw dbError;
-                setSites(prev =>
-                    prev.map(s => s.id === id ? { ...s, is_active: !currentStatus } : s)
-                );
-            }
+            const updatedSites = sites.map(s =>
+                s.id === id ? { ...s, is_active: !currentStatus } : s
+            );
+            setSites(updatedSites);
+            persistGuestSites(updatedSites);
 
             // Notify the content script for immediate sync
             window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
@@ -200,34 +189,14 @@ export const useBlockedSites = () => {
 
         // Listen for storage changes from other tabs or content scripts
         const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === SYNC_STORAGE_KEYS.guestSites || e.key === SYNC_STORAGE_KEYS.guestFlag) {
+            if (
+                e.key === SYNC_STORAGE_KEYS.guestSites ||
+                e.key === SYNC_STORAGE_KEYS.guestFlag ||
+                e.key === GUEST_SITES_SIGNATURE_KEY
+            ) {
                 fetchSites();
             }
         };
-
-        let cleanupRealtime = () => {};
-
-        if (user && !isGuest) {
-            const channel = supabase
-                .channel(`blocked-sites-${user.id}`)
-                .on(
-                    'postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'blocked_sites',
-                        filter: `user_id=eq.${user.id}`
-                    },
-                    () => {
-                        fetchSites();
-                    }
-                )
-                .subscribe();
-
-            cleanupRealtime = () => {
-                void supabase.removeChannel(channel);
-            };
-        }
 
         window.addEventListener('storage', handleStorageChange);
         window.addEventListener('ctrl-blck-sync', fetchSites as EventListener);
@@ -237,20 +206,20 @@ export const useBlockedSites = () => {
         window.addEventListener('ctrl-blck-ui-refresh', fetchSites as EventListener);
         
         return () => {
-            cleanupRealtime();
             window.removeEventListener('storage', handleStorageChange);
             window.removeEventListener('ctrl-blck-sync', fetchSites as EventListener);
             window.removeEventListener('ctrl-blck-ui-refresh', fetchSites as EventListener);
         };
-    }, [fetchSites, isGuest, user]);
+    }, [fetchSites, isGuest]);
 
     return { 
         sites, 
         loading: !isMounted || loading || (authLoading && sites.length === 0), 
         error, 
         addSite, 
+        updateSiteSchedule,
         deleteSite, 
         toggleSite, 
-        refresh: fetchSites 
+        refresh: fetchSites
     };
 };

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from './useAuth';
 import { sanitizeUrl } from '@/lib/url';
 
@@ -19,7 +18,7 @@ export interface FocusSession {
 export type StatsRange = 'today' | 'week' | 'all-time';
 
 export function useFocusSessions() {
-  const { user, isGuest, loading: authLoading } = useAuth();
+  const { isGuest, loading: authLoading } = useAuth();
   const [sessions, setSessions] = useState<FocusSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSession, setActiveSession] = useState<FocusSession | null>(null);
@@ -32,40 +31,23 @@ export function useFocusSessions() {
     try {
       setLoading(true);
 
-      if (isGuest) {
-        let parsed = [];
-        try {
-          const localData = localStorage.getItem('guest_focus_sessions');
-          parsed = localData ? JSON.parse(localData) : [];
-        } catch (e) {
-          console.error('Failed to parse guest sessions:', e);
-        }
-        setSessions(parsed);
-        const active = parsed.find((s: FocusSession) => s.status === 'active');
-        setActiveSession(active || null);
-        setLoading(false);
-        return;
-      }
-
-      if (!user) {
+      if (!isGuest) {
         setSessions([]);
         setActiveSession(null);
         setLoading(false);
         return;
       }
 
-      const { data, error } = await supabase
-        .from('focus_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      let parsed = [];
+      try {
+        const localData = localStorage.getItem('guest_focus_sessions');
+        parsed = localData ? JSON.parse(localData) : [];
+      } catch (e) {
+        console.error('Failed to parse guest sessions:', e);
+      }
 
-      if (error) throw error;
-
-      setSessions(data || []);
-      
-      // Check for an active session
-      const active = data?.find(s => s.status === 'active');
+      setSessions(parsed);
+      const active = parsed.find((s: FocusSession) => s.status === 'active');
       setActiveSession(active || null);
     } catch (error) {
       console.error('Error fetching sessions:', error);
@@ -73,7 +55,7 @@ export function useFocusSessions() {
       hasFetchedRef.current = true;
       setLoading(false);
     }
-  }, [user, isGuest, authLoading]);
+  }, [isGuest, authLoading]);
 
   useEffect(() => {
     fetchSessions();
@@ -90,7 +72,7 @@ export function useFocusSessions() {
 
 
   const startSession = async (url: string, durationMinutes: number) => {
-    if (!user && !isGuest) return;
+    if (!isGuest) return;
 
     const normalizedUrl = sanitizeUrl(url);
     const now = new Date().toISOString();
@@ -106,108 +88,47 @@ export function useFocusSessions() {
     const previousActiveSession = activeSession;
 
     try {
-      if (isGuest) {
-        const newSession: FocusSession = {
-          id: `local_${Math.random().toString(36).substring(2, 11)}`,
-          user_id: 'guest',
-          ...newSessionData,
-          end_time: null,
-          created_at: now
-        };
-        const updated = [newSession, ...sessions];
-        setSessions(updated);
-        setActiveSession(newSession);
-        localStorage.setItem('guest_focus_sessions', JSON.stringify(updated));
-        
-        // Notify the content script for immediate sync
-        window.dispatchEvent(new CustomEvent('ctrl-blck-sync', { 
-            detail: { activeSession: newSession } 
-        }));
-        
-        return newSession;
-      }
-
-      // Optimistic Update for authenticated users
-      const optimisticSession: FocusSession = {
-        id: `temp_${Date.now()}`,
-        user_id: user?.id || '',
+      const newSession: FocusSession = {
+        id: `local_${Math.random().toString(36).substring(2, 11)}`,
+        user_id: 'guest',
         ...newSessionData,
         end_time: null,
         created_at: now
       };
+      const updated = [newSession, ...sessions];
+      setActiveSession(newSession);
+      setSessions(updated);
+      localStorage.setItem('guest_focus_sessions', JSON.stringify(updated));
 
-      setActiveSession(optimisticSession);
-      setSessions(prev => [optimisticSession, ...prev]);
-
-      // Notify the extension immediately with optimistic data
-      window.dispatchEvent(new CustomEvent('ctrl-blck-sync', { 
-          detail: { activeSession: optimisticSession } 
+      // Notify the content script for immediate sync
+      window.dispatchEvent(new CustomEvent('ctrl-blck-sync', {
+        detail: { activeSession: newSession }
       }));
 
-      const { data, error } = await supabase
-        .from('focus_sessions')
-        .insert([{ ...newSessionData, user_id: user?.id }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      // Update with the real data from Supabase (to get the real ID and timestamps)
-      setActiveSession(data);
-      setSessions(prev => prev.map(s => s.id === optimisticSession.id ? data : s));
-      
-      // Re-dispatch with final data if needed (usually optimistic is enough for the timer)
-      window.dispatchEvent(new CustomEvent('ctrl-blck-sync', { 
-          detail: { activeSession: data } 
-      }));
-      
-      return data;
+      return newSession;
     } catch (error) {
       console.error('Error starting session:', error);
       // Rollback on error
       setActiveSession(previousActiveSession);
-      setSessions(prev => prev.filter(s => !s.id.startsWith('temp_')));
       throw error;
     }
   };
 
   const endSession = async (sessionId: string, status: 'completed' | 'cancelled' = 'completed') => {
-    try {
-      if (isGuest) {
-        const updated = sessions.map(s => 
-          s.id === sessionId 
-            ? { ...s, status, end_time: new Date().toISOString() } 
-            : s
-        );
-        setSessions(updated);
-        setActiveSession(null);
-        localStorage.setItem('guest_focus_sessions', JSON.stringify(updated));
-        
-        // Notify the content script for immediate sync
-        window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
-        
-        return updated.find(s => s.id === sessionId);
-      }
-
-      const { data, error } = await supabase
-        .from('focus_sessions')
-        .update({
-          status,
-          end_time: new Date().toISOString(),
-        })
-        .eq('id', sessionId)
-        .select()
-        .single();
-
-      if (error) throw error;
-
+      try {
+      const updated = sessions.map(s =>
+        s.id === sessionId
+          ? { ...s, status, end_time: new Date().toISOString() }
+          : s
+      );
+      setSessions(updated);
       setActiveSession(null);
-      setSessions(prev => prev.map(s => (s.id === sessionId ? data : s)));
+      localStorage.setItem('guest_focus_sessions', JSON.stringify(updated));
       
       // Notify the content script for immediate sync
       window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
       
-      return data;
+      return updated.find(s => s.id === sessionId);
     } catch (error) {
       console.error('Error ending session:', error);
       throw error;
@@ -216,10 +137,7 @@ export function useFocusSessions() {
 
   const getStats = (range: StatsRange) => {
     const now = new Date();
-    const filteredSessions = sessions.filter(s => {
-      if (s.status !== 'completed') return false;
-      const sessionDate = new Date(s.start_time);
-      
+    const inRange = (sessionDate: Date) => {
       if (range === 'today') {
         return sessionDate.toDateString() === now.toDateString();
       } else if (range === 'week') {
@@ -227,10 +145,14 @@ export function useFocusSessions() {
         return sessionDate >= weekAgo;
       }
       return true; // all-time
-    });
+    };
 
-    const totalSessions = filteredSessions.length;
-    const totalMinutes = filteredSessions.reduce((acc, s) => {
+    const completedSessions = sessions.filter(s => s.status === 'completed' && inRange(new Date(s.start_time)));
+    const activeInRange = activeSession && inRange(new Date(activeSession.start_time));
+
+    const totalSessions = completedSessions.length + (activeInRange ? 1 : 0);
+
+    const completedMinutes = completedSessions.reduce((acc, s) => {
       if (s.end_time) {
         const start = new Date(s.start_time).getTime();
         const end = new Date(s.end_time).getTime();
@@ -238,6 +160,13 @@ export function useFocusSessions() {
       }
       return acc;
     }, 0);
+
+    // If there's an active session, include its live elapsed minutes
+    const activeMinutes = activeInRange
+      ? Math.floor((Date.now() - new Date(activeSession.start_time).getTime()) / 60000)
+      : 0;
+
+    const totalMinutes = completedMinutes + activeMinutes;
 
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;

@@ -74,6 +74,18 @@ body {
     gap: 8px;
 }
 
+.list_table li span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+
+.delete-icon {
+    flex-shrink: 0;
+}
+
 .add_button {
     background-color: #FF4141;
     color: white;

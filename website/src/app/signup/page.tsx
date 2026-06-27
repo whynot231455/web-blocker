@@ -1,48 +1,11 @@
 'use client';
 
 import React from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft } from 'lucide-react';
 
 export default function SignUpPage() {
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [info, setInfo] = React.useState<string | null>(null);
-  
-  const { signUp } = useAuth();
-  const router = useRouter();
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    setInfo(null);
-    
-    if (!email || !password) {
-      setError("Email and password are required.");
-      setIsLoading(false);
-      return;
-    }
-
-    const { error: signUpError } = await signUp(email, password);
-    
-    if (signUpError) {
-      setError(signUpError.message);
-      setIsLoading(false);
-    } else {
-      setInfo("Account created! You can now log in.");
-      setTimeout(() => {
-        router.push('/login');
-      }, 2000);
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div
       className="theme-static-light min-h-screen flex items-center justify-center bg-white"
@@ -66,73 +29,63 @@ export default function SignUpPage() {
             CTRL + BLCK
           </h1>
           <p style={{ fontSize: '8px', color: '#555', textAlign: 'center' }}>
-            create your account
+            accounts — coming soon
           </p>
         </Link>
 
-        {/* Info / Error banners */}
-        {info && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-400 text-green-700" style={{ fontSize: '8px', lineHeight: '1.5' }}>
-            {info}
+        {/* Coming Soon Card */}
+        <div className="border-2 border-black p-6 text-center mb-6" style={{ boxShadow: '4px 4px 0px #000' }}>
+          <div className="h-16 w-16 rounded-full bg-yellow-100 border-2 border-yellow-400 flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">🔧</span>
           </div>
-        )}
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-400 text-red-700" style={{ fontSize: '8px', lineHeight: '1.5' }}>
-            {error}
-          </div>
-        )}
 
-        <form onSubmit={handleSignUp} className="space-y-4 mb-6">
-          <div>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="EMAIL"
-              disabled={isLoading}
-              className="w-full p-4 bg-white text-black border-2 border-black focus:outline-none focus:ring-2 focus:ring-black placeholder-gray-400"
-              style={{ fontSize: '10px', letterSpacing: '0.1em' }}
-            />
-          </div>
-          <div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="PASSWORD"
-              disabled={isLoading}
-              className="w-full p-4 bg-white text-black border-2 border-black focus:outline-none focus:ring-2 focus:ring-black placeholder-gray-400"
-              style={{ fontSize: '10px', letterSpacing: '0.1em' }}
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-4 bg-black text-white border-2 border-black hover:bg-gray-800 transition-colors disabled:opacity-50"
-            style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.1em', boxShadow: '4px 4px 0px #000' }}
-          >
-            {isLoading ? 'CREATING...' : 'SIGN UP'}
-          </button>
-        </form>
+          <h2 className="font-black uppercase tracking-widest text-sm mb-3">
+            Account Sign-Up Isn&apos;t Ready Yet
+          </h2>
+          <p className="text-[8px] text-gray-500 leading-loose mb-4">
+            We&apos;re building out the full account system — sign-up, cloud sync, and more.
+          </p>
 
-        <div className="text-center mb-6">
-          <Link href="/login" className="text-[8px] text-gray-500 hover:text-black underline transition-colors leading-loose">
-            Already have an account? Log in here
+          <div className="bg-gray-50 border-2 border-gray-200 p-4 text-left mb-4">
+            <h3 className="font-black uppercase tracking-widest text-[8px] mb-2 text-gray-700">
+              ✅ What&apos;s available now
+            </h3>
+            <ul className="text-[7px] text-gray-600 leading-loose space-y-1">
+              <li>• Guest mode — block sites instantly</li>
+              <li>• Local focus timer &amp; session tracking</li>
+              <li>• Full dashboard &amp; settings</li>
+            </ul>
+          </div>
+
+          <div className="bg-yellow-50 border-2 border-yellow-200 p-4 text-left mb-4">
+            <h3 className="font-black uppercase tracking-widest text-[8px] mb-2 text-yellow-700">
+              🚧 Coming later
+            </h3>
+            <ul className="text-[7px] text-yellow-700 leading-loose space-y-1">
+              <li>• Email &amp; password registration</li>
+              <li>• Cloud sync across devices</li>
+              <li>• Subscription plans</li>
+            </ul>
+          </div>
+
+          <Link href="/login">
+            <button
+              className="w-full py-4 bg-black text-white border-2 border-black hover:bg-gray-800 transition-colors"
+              style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.1em', boxShadow: '4px 4px 0px #000' }}
+            >
+              CONTINUE AS GUEST
+            </button>
           </Link>
         </div>
 
-        <p className="mt-4 text-center text-[8px] text-gray-400 uppercase tracking-widest leading-loose">
-          Secure authentication powered by Supabase
-        </p>
-
-        <div className="mt-8 flex justify-center">
-          <Link 
-            href="/" 
+        <div className="flex justify-center">
+          <Link
+            href="/login"
             className="flex items-center gap-2 text-[8px] text-black hover:opacity-70 transition-opacity"
             style={{ letterSpacing: '0.1em' }}
           >
             <ArrowLeft size={12} />
-            BACK TO HOME
+            BACK TO LOGIN
           </Link>
         </div>
       </div>

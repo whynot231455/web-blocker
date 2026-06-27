@@ -40,7 +40,7 @@ export default function ConstructionPage() {
             UNDER CONSTRUCTION
           </h1>
           <p style={{ fontSize: '9px', color: '#6B7280', lineHeight: '1.6' }} className="mt-2">
-            Social logins (Google & GitHub) are currently offline.
+            Accounts are currently offline.
           </p>
         </div>
 

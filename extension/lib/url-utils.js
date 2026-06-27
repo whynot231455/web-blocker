@@ -1,8 +1,12 @@
 /**
  * Unified URL utilities for CTRL+BLCK
  * Shared between Chrome Extension and Website
+ *
+ * Guarded against double-declaration: if this file is loaded more than once
+ * in the same JavaScript context (common when content scripts share a world),
+ * the second load skips the declaration to avoid 'already been declared' errors.
  */
-
+if (!globalThis.CTRL_BLCK_URL_UTILS) {
 const URL_UTILS = {
     /**
      * Normalizes a URL or hostname to a consistent format.
@@ -46,6 +50,5 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 // Export for browser/extension globals
-if (typeof globalThis !== 'undefined') {
-    globalThis.CTRL_BLCK_URL_UTILS = URL_UTILS;
+globalThis.CTRL_BLCK_URL_UTILS = URL_UTILS;
 }

@@ -24,7 +24,7 @@ export default function LandingPage() {
         </div>
         <div className="flex items-center justify-end gap-4 flex-1">
           <Link href="/login">
-            <button className="text-[10px] font-bold uppercase tracking-widest px-4 py-2 hover:bg-gray-100 transition-colors">Login</button>
+            <button className="text-[10px] font-bold uppercase tracking-widest px-4 py-2 hover:bg-gray-100 transition-colors">Get Started</button>
           </Link>
         </div>
       </nav>
@@ -58,7 +58,6 @@ export default function LandingPage() {
             <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-[8px] font-bold uppercase tracking-widest text-gray-500">
               <div className="flex items-center gap-2"><CheckCircle size={16} className="text-black" /> Free forever</div>
               <div className="flex items-center gap-2"><CheckCircle size={16} className="text-black" /> Manifest V3 Ready</div>
-              <div className="flex items-center gap-2"><CheckCircle size={16} className="text-black" /> Supabase Synced</div>
             </div>
           </div>
         </div>
@@ -220,9 +219,8 @@ export default function LandingPage() {
             &copy; 2026 CTRL + BLCK.
           </p>
           <div className="flex gap-8 text-[8px] font-bold uppercase tracking-widest text-gray-500">
-            <a href="#" className="hover:text-black transition-colors">Privacy</a>
-            <a href="#" className="hover:text-black transition-colors">Terms</a>
-            <a href="https://github.com/whynot231455/web-blocker" className="hover:text-black transition-colors">Github</a>
+            <Link href="/privacy" className="hover:text-black transition-colors">Privacy</Link>
+            <a href="https://github.com/whynot231455/web-blocker" target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">Github</a>
           </div>
         </div>
       </footer>

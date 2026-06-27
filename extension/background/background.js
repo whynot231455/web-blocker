@@ -13,6 +13,8 @@ const STORAGE_KEYS = {
   supabaseSession: syncConfig.storageKeys.supabaseSession,
   dashboardOrigin: syncConfig.storageKeys.dashboardOrigin,
   blockedSites: syncConfig.storageKeys.blockedSites,
+  blockedSiteSchedules: syncConfig.storageKeys.blockedSiteSchedules,
+  blockedSitesSignature: syncConfig.storageKeys.blockedSitesSignature,
   guestFlag: syncConfig.storageKeys.guestFlag,
   lastSyncStatus: 'lastSyncStatus'
 };
@@ -23,6 +25,28 @@ const DEFAULT_DASHBOARD_ORIGIN = syncConfig.defaultDashboardOrigin;
 const DASHBOARD_PATHS = {
   login: syncConfig.dashboardPaths.login
 };
+
+/**
+ * @param {string[]} urls
+ * @param {Record<string, { enabled?: boolean; start?: string; end?: string } | null>} [schedules]
+ */
+function buildBlockedSitesSignature(urls, schedules = {}) {
+  return Array.from(new Set(
+    (Array.isArray(urls) ? urls : [])
+      .map(url => {
+        const normalized = normalizeHostname(url);
+        if (!normalized) return null;
+        const schedule = schedules && typeof schedules === 'object' ? schedules[normalized] || null : null;
+        const enabled = schedule && schedule.enabled !== false ? '1' : '0';
+        const start = schedule?.start || '';
+        const end = schedule?.end || '';
+        return `${normalized}:${enabled}:${start}:${end}`;
+      })
+      .filter(Boolean)
+  ))
+    .sort()
+    .join('|');
+}
 
 // Set to true to enable verbose sync logging. Mirrors debugMode in sync-constants.js.
 const DEBUG_MODE = false;
@@ -85,6 +109,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         storageData[STORAGE_KEYS.blockedSites] = Array.from(
             new Set(message.urls.map(syncConfig.normalizeHostname).filter(Boolean))
         );
+        storageData[STORAGE_KEYS.blockedSiteSchedules] = message.siteSchedules && typeof message.siteSchedules === 'object'
+          ? message.siteSchedules
+          : {};
+        storageData[STORAGE_KEYS.blockedSitesSignature] = buildBlockedSitesSignature(
+          storageData[STORAGE_KEYS.blockedSites],
+          storageData[STORAGE_KEYS.blockedSiteSchedules]
+        );
     }
 
     if (message.activeSession !== undefined) {
@@ -139,6 +170,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === MESSAGE_ACTIONS.getSyncStatus) {
     getSyncStatus().then(res => sendResponse?.(res));
     return true;
+  }
+
+  if (message.action === MESSAGE_ACTIONS.requestDashboardSync) {
+    handleRequestDashboardSync();
+    return;
   }
 
   if (message.action === MESSAGE_ACTIONS.addSiteToSupabase) {
@@ -256,6 +292,28 @@ async function getSyncStatus() {
 }
 
 /**
+ * Called by the popup when it opens. Queries all open dashboard tabs
+ * and asks them to push their latest site data to chrome.storage.local,
+ * so the popup can read fresh data even if the periodic sync missed it.
+ */
+async function handleRequestDashboardSync() {
+  const result = await chrome.storage.local.get(STORAGE_KEYS.dashboardOrigin);
+  const origin = result[STORAGE_KEYS.dashboardOrigin] || DEFAULT_DASHBOARD_ORIGIN;
+  try {
+    const tabs = await chrome.tabs.query({ url: `${origin}/*` });
+    for (const tab of tabs) {
+      if (typeof tab.id === 'number') {
+        chrome.tabs.sendMessage(tab.id, { action: MESSAGE_ACTIONS.requestDashboardSync }).catch(() => {
+          // Tab may have navigated away — ignore silently
+        });
+      }
+    }
+  } catch {
+    // No tabs match or permission denied — dashboard just isn't open
+  }
+}
+
+/**
  * @param {Object} [options]
  * @param {boolean} [options.clearGuestMode]
  * @param {boolean} [options.clearBlockedSites]
@@ -277,6 +335,8 @@ async function clearExtensionSessionState(options = {}) {
 
   if (clearBlockedSites) {
     nextState[STORAGE_KEYS.blockedSites] = [];
+    nextState[STORAGE_KEYS.blockedSiteSchedules] = {};
+    nextState[STORAGE_KEYS.blockedSitesSignature] = '';
   }
 
   nextState[STORAGE_KEYS.lastSyncStatus] = createSyncStatus(
@@ -369,6 +429,8 @@ async function syncFromSupabase() {
 
     await chrome.storage.local.set({ 
         [STORAGE_KEYS.blockedSites]: allBlockedUrls,
+        [STORAGE_KEYS.blockedSiteSchedules]: {},
+        [STORAGE_KEYS.blockedSitesSignature]: buildBlockedSitesSignature(allBlockedUrls, {}),
         activeSession: activeSession,
         [STORAGE_KEYS.lastSyncStatus]: createSyncStatus('synced', {
           blockedSiteCount: allBlockedUrls.length

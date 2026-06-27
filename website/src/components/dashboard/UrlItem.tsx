@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, Pencil } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { BlockedSite } from '../../types/blockedSite';
 
@@ -59,12 +59,6 @@ export const UrlItem: React.FC<UrlItemProps> = ({ site, onDelete }) => {
 
       {/* Right: actions */}
       <div className="flex items-center gap-6 opacity-30 group-hover:opacity-100 transition-opacity">
-        <button
-          className="text-black hover:scale-110 transition-transform"
-          aria-label="Edit"
-        >
-          <Pencil size={14} strokeWidth={3} />
-        </button>
         <button
           onClick={() => onDelete(site.id)}
           className="text-black hover:text-[#FF4141] hover:scale-110 transition-all"

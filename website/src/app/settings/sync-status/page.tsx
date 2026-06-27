@@ -8,11 +8,14 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { ExtensionGate } from '@/components/layout/ExtensionGate';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
+import { useBlockedSites } from '@/hooks/useBlockedSites';
 import { useExtensionSyncStatus, type ExtensionSyncStatus } from '@/hooks/useExtensionSyncStatus';
+import { getAccessWindowState } from '@/lib/schedule';
 import { useRouter } from 'next/navigation';
 
 export default function SyncStatusPage() {
   const { user, isGuest, loading: authLoading } = useAuth();
+  const { sites } = useBlockedSites();
   const { syncStatus, refresh } = useExtensionSyncStatus();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const router = useRouter();
@@ -24,6 +27,18 @@ export default function SyncStatusPage() {
   }, [user, isGuest, authLoading, router]);
 
   const display = useMemo(() => getDisplay(syncStatus), [syncStatus]);
+  const scheduleSummary = useMemo(() => {
+    const now = new Date();
+    const activeSites = sites.filter((site) => site.is_active !== false);
+    const scheduledSites = activeSites.filter((site) => Boolean(site.access_window)).length;
+    const allowedNow = activeSites.filter((site) => getAccessWindowState(site.access_window || null, now).allowed).length;
+
+    return {
+      scheduledSites,
+      allowedNow,
+      blockedNow: activeSites.length - allowedNow,
+    };
+  }, [sites]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -116,9 +131,9 @@ export default function SyncStatusPage() {
               />
               <StatusCard
                 icon={BadgeCheck}
-                label="Active Session"
-                value={syncStatus.activeSession?.url || 'None'}
-                detail={syncStatus.activeSession ? 'Temporary access is active.' : 'No active focus override.'}
+                label="Saved Windows"
+                value={scheduleSummary.scheduledSites.toString()}
+                detail={`Allowed now: ${scheduleSummary.allowedNow}, blocked now: ${scheduleSummary.blockedNow}.`}
               />
             </div>
 
@@ -204,8 +219,8 @@ function getDisplay(status: ExtensionSyncStatus) {
       icon: CircleAlert,
       title: 'Sync Needs Attention',
       description: 'The extension responded, but the latest sync attempt failed.',
-      mode: status.hasSession ? 'Account' : 'Disconnected',
-      modeDetail: status.hasSession ? 'Account sync needs refresh.' : 'No valid account session is active.',
+      mode: 'Guest',
+      modeDetail: 'Local guest sync needs a refresh.',
       bannerClass: 'bg-red-50 text-red-800',
     };
   }
@@ -214,9 +229,9 @@ function getDisplay(status: ExtensionSyncStatus) {
     return {
       icon: Unplug,
       title: 'Not Synchronized',
-      description: 'The extension is installed, but no account or guest sync is active.',
-      mode: 'Signed Out',
-      modeDetail: 'Sign in or continue as guest to sync.',
+      description: 'The extension is installed, but guest sync has not been started yet.',
+      mode: 'Guest Off',
+      modeDetail: 'Continue as guest to start syncing local blocked sites.',
       bannerClass: 'bg-white text-black',
     };
   }

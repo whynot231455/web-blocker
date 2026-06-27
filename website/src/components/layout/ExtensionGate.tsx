@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Download, RefreshCw, AlertTriangle } from 'lucide-react';
@@ -30,7 +30,12 @@ function detectBrowser(): 'chrome' | 'unsupported' {
  */
 export function ExtensionGate({ children }: { children: React.ReactNode }) {
   const { status } = useExtensionDetected();
+  const [mounted, setMounted] = useState(false);
   const browser = detectBrowser();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // ── Allow bypass if user previously acknowledged the extension ──
   const acknowledged =
@@ -38,6 +43,15 @@ export function ExtensionGate({ children }: { children: React.ReactNode }) {
     window.localStorage.getItem(EXTENSION_ACK_KEY) === 'true';
 
   const isInstalled = status === 'installed' || acknowledged;
+
+  // Keep the first server render and the first client render identical.
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black" />
+      </div>
+    );
+  }
 
   // ── Checking state ────────────────────────────────────────────────
   if (status === 'checking' && !acknowledged) {

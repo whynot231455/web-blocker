@@ -5,6 +5,7 @@
  * @property {string} [user_id]
  * @property {boolean} [is_active]
  * @property {string} [created_at]
+ * @property {{ enabled: boolean; start: string; end: string } | null} [access_window]
  */
 /**
  * @typedef {Object} ActiveSession
@@ -14,6 +15,7 @@
  * @property {string} [status]
  */
 const syncConfig = globalThis.CTRL_BLCK_SYNC;
+const scheduleUtils = globalThis.CTRL_BLCK_SCHEDULE_UTILS;
 
 if (!syncConfig) {
     console.error('CTRL+BLCK: Missing sync constants');
@@ -28,6 +30,8 @@ if (!syncConfig) {
     const LAST_SYNC_STATUS_KEY = 'lastSyncStatus';
     const SYNC_STATUS_REQUEST_EVENT = 'ctrl-blck-sync-status-request';
     const SYNC_STATUS_RESPONSE_EVENT = 'ctrl-blck-sync-status-response';
+    const BLOCKED_SITES_SIGNATURE_KEY = storageKeys.blockedSitesSignature;
+    const BLOCKED_SITE_SCHEDULES_KEY = storageKeys.blockedSiteSchedules || 'blocked_site_schedules';
 
     const isKnownOrigin = dashboardOrigins.includes(window.location.origin);
     const hasDashboardMarker = Boolean(document.querySelector(`meta[name="${dashboardMetaName}"]`));
@@ -59,6 +63,141 @@ if (!syncConfig) {
             }, 300);
         }
 
+        /** @type {number | null} */
+        let publishStatusDebounceTimer = null;
+        function schedulePublishStatus() {
+            if (publishStatusDebounceTimer !== null) clearTimeout(publishStatusDebounceTimer);
+            publishStatusDebounceTimer = setTimeout(() => {
+                publishStatusDebounceTimer = null;
+                void publishSyncStatus();
+            }, 100);
+        }
+
+        /**
+         * @param {unknown} value
+         * @returns {string}
+         */
+        function readBlockedSitesSignature(value) {
+            return typeof value === 'string' ? value : '';
+        }
+
+        /**
+         * Determine whether this tab is allowed to authoritatively sync dashboard state.
+         * The first known dashboard origin claims the slot; other origins become read-only.
+         * @returns {Promise<boolean>}
+         */
+        async function isActiveDashboardOrigin() {
+            const currentOrigin = window.location.origin;
+            if (!dashboardOrigins.includes(currentOrigin)) {
+                return false;
+            }
+
+            const result = await chrome.storage.local.get(storageKeys.dashboardOrigin);
+            const storedOrigin = result[storageKeys.dashboardOrigin];
+
+            if (typeof storedOrigin !== 'string' || !storedOrigin) {
+                safeSend({
+                    action: messageActions.syncDashboardOrigin,
+                    origin: currentOrigin
+                });
+                return true;
+            }
+
+            if (storedOrigin === currentOrigin) {
+                return true;
+            }
+
+            return false;
+        }
+
+        /**
+         * @param {unknown} site
+         * @returns {LocalSite | null}
+         */
+        function normalizeLocalSite(site) {
+            const cleanUrl = syncConfig.normalizeHostname(site && site.url);
+            if (!cleanUrl) return null;
+
+            const accessWindow = scheduleUtils?.normalizeAccessWindow
+                ? scheduleUtils.normalizeAccessWindow(site?.access_window || null)
+                : null;
+
+            return {
+                id: site?.id || `local_${btoa(cleanUrl).substring(0, 40)}`,
+                url: cleanUrl,
+                user_id: site?.user_id || 'guest',
+                is_active: site?.is_active !== false,
+                created_at: site?.created_at || new Date().toISOString(),
+                access_window: accessWindow
+            };
+        }
+
+        /**
+         * @param {LocalSite[]} sites
+         */
+        function writeLocalGuestSites(sites) {
+            const normalizedSites = Array.isArray(sites)
+                ? sites.map((site) => normalizeLocalSite(site)).filter(Boolean)
+                : [];
+
+            localStorage.setItem(storageKeys.guestSites, JSON.stringify(normalizedSites));
+            localStorage.setItem(
+                BLOCKED_SITES_SIGNATURE_KEY,
+                scheduleUtils?.buildBlockedSitesSignature
+                    ? scheduleUtils.buildBlockedSitesSignature(normalizedSites)
+                    : ''
+            );
+        }
+
+        /**
+         * @returns {Promise<{ sites: LocalSite[]; signature: string }>}
+         */
+        async function readExtensionBlockedSites() {
+            const result = await chrome.storage.local.get([
+                storageKeys.blockedSites,
+                BLOCKED_SITE_SCHEDULES_KEY,
+                BLOCKED_SITES_SIGNATURE_KEY
+            ]);
+            const urls = Array.isArray(result[storageKeys.blockedSites])
+                ? result[storageKeys.blockedSites]
+                : [];
+            const schedules = result[BLOCKED_SITE_SCHEDULES_KEY] && typeof result[BLOCKED_SITE_SCHEDULES_KEY] === 'object'
+                ? result[BLOCKED_SITE_SCHEDULES_KEY]
+                : {};
+
+            const sites = urls.map((url) => {
+                const cleanUrl = syncConfig.normalizeHostname(url);
+                if (!cleanUrl) return null;
+                return normalizeLocalSite({
+                    id: `local_${btoa(cleanUrl).substring(0, 40)}`,
+                    url: cleanUrl,
+                    user_id: 'guest',
+                    is_active: true,
+                    created_at: new Date().toISOString(),
+                    access_window: schedules[cleanUrl] || null
+                });
+            }).filter(Boolean);
+
+            return {
+                sites,
+                signature: readBlockedSitesSignature(result[BLOCKED_SITES_SIGNATURE_KEY]) || (scheduleUtils?.buildBlockedSitesSignature ? scheduleUtils.buildBlockedSitesSignature(sites) : '')
+            };
+        }
+
+        /**
+         * @returns {{ sites: LocalSite[]; signature: string }}
+         */
+        function readDashboardBlockedSites() {
+            const parsedSites = parseStoredArray(localStorage.getItem(storageKeys.guestSites), 'sites');
+            const sites = Array.isArray(parsedSites)
+                ? parsedSites.map((site) => normalizeLocalSite(site)).filter(Boolean)
+                : [];
+            return {
+                sites,
+                signature: readBlockedSitesSignature(localStorage.getItem(BLOCKED_SITES_SIGNATURE_KEY)) || (scheduleUtils?.buildBlockedSitesSignature ? scheduleUtils.buildBlockedSitesSignature(sites) : '')
+            };
+        }
+
         /** Returns false if the extension has been reloaded/invalidated */
         function isExtensionAlive() {
             try {
@@ -86,14 +225,14 @@ if (!syncConfig) {
             }
         }
 
-        function syncDashboardToExtension() {
+        async function syncDashboardToExtension() {
             try {
                 lastDashboardUpdate = Date.now();
 
-                safeSend({
-                    action: messageActions.syncDashboardOrigin,
-                    origin: window.location.origin
-                });
+                const canSync = await isActiveDashboardOrigin();
+                if (!canSync) {
+                    return;
+                }
 
                 const sessionData = localStorage.getItem(storageKeys.supabaseAuthToken);
                 const localSites = localStorage.getItem(storageKeys.guestSites);
@@ -131,12 +270,22 @@ if (!syncConfig) {
                     isGuest: effectiveGuestStatus
                 });
 
-                const urls = Array.isArray(sites)
-                    ? sites
-                        .filter(site => site?.is_active !== false)
-                        .map(site => syncConfig.normalizeHostname(site.url))
-                        .filter(Boolean)
+                const normalizedSites = Array.isArray(sites)
+                    ? sites.map((site) => normalizeLocalSite(site)).filter(Boolean)
                     : [];
+                const urls = normalizedSites.map((site) => site.url);
+                const siteSchedules = {};
+                normalizedSites.forEach((site) => {
+                    if (site?.url) {
+                        // If the site is inactive (toggled OFF), send null schedule →
+                        // content.js will keep it in the blocked list and block it
+                        // always (no valid window). If active, use its saved window.
+                        siteSchedules[site.url] = site.is_active !== false
+                            ? (site.access_window || null)
+                            : null;
+                    }
+                });
+                const localSignature = readDashboardBlockedSites().signature;
 
                 let normalizedActiveSession = activeSession;
                 if (normalizedActiveSession?.url) {
@@ -152,34 +301,31 @@ if (!syncConfig) {
                     }
                 }
 
-                if (effectiveGuestStatus || urls.length > 0 || normalizedActiveSession) {
+                const extensionState = await readExtensionBlockedSites();
+                const shouldPushUrls = localSignature !== extensionState.signature || Boolean(normalizedActiveSession);
+
+                if ((effectiveGuestStatus || urls.length > 0 || normalizedActiveSession) && shouldPushUrls) {
                     safeSend({
                         action: messageActions.syncUrls,
                         urls: Array.from(new Set(urls)),
-                        activeSession: normalizedActiveSession
+                        siteSchedules,
+                        activeSession: normalizedActiveSession,
+                        isGuest: effectiveGuestStatus
                     });
-                } else if (!sessionData) {
+                } else if (!sessionData && shouldPushUrls) {
                     safeSend({
                         action: messageActions.syncUrls,
                         urls: [],
+                        siteSchedules: {},
                         activeSession: null
                     });
                 }
-
-                const rawLimit = localStorage.getItem('dailyUnlockLimit');
-                const rawDuration = localStorage.getItem('tempAccessDuration');
-                
-                if (rawLimit || rawDuration) {
-                    const settingsPayload = {};
-                    if (rawLimit) settingsPayload.dailyUnlockLimit = parseInt(rawLimit, 10);
-                    if (rawDuration) settingsPayload.tempAccessDuration = parseInt(rawDuration, 10);
-                    
-                    safeSend({
-                        action: messageActions.syncSettings,
-                        ...settingsPayload
-                    });
-                }
             } catch (error) {
+                // Suppress "extension context invalidated" errors — they're expected
+                // when the extension is reloaded while the dashboard page is open.
+                if (String(error).includes('context invalidated') || String(error).includes('Extension context')) {
+                    return;
+                }
                 console.error('CTRL+BLCK: Error syncing dashboard to extension:', error);
             }
         }
@@ -190,18 +336,21 @@ if (!syncConfig) {
                     [storageKeys.blockedSites]: urls,
                     [storageKeys.supabaseSession]: supabaseSession,
                     [LAST_SYNC_STATUS_KEY]: lastSyncStatus,
+                    [BLOCKED_SITES_SIGNATURE_KEY]: storedSignature,
                     isGuest,
                     activeSession
                 } = await chrome.storage.local.get([
                     storageKeys.blockedSites,
                     storageKeys.supabaseSession,
                     LAST_SYNC_STATUS_KEY,
+                    BLOCKED_SITES_SIGNATURE_KEY,
                     'isGuest',
                     'activeSession'
                 ]);
 
                 const blockedSiteCount = Array.isArray(urls) ? urls.length : 0;
                 const state = lastSyncStatus?.state || (supabaseSession ? 'synced' : isGuest ? 'guest_local' : 'not_authenticated');
+                const signature = readBlockedSitesSignature(storedSignature) || buildBlockedSitesSignature(Array.isArray(urls) ? urls : []);
 
                 window.dispatchEvent(new CustomEvent(SYNC_STATUS_RESPONSE_EVENT, {
                     detail: {
@@ -212,6 +361,7 @@ if (!syncConfig) {
                         blockedSiteCount,
                         lastSyncedAt: lastSyncStatus?.lastSyncedAt || null,
                         error: lastSyncStatus?.error || null,
+                        blockedSitesSignature: signature,
                         activeSession: activeSession?.url
                             ? {
                                 url: syncConfig.normalizeHostname(activeSession.url) || activeSession.url,
@@ -243,71 +393,44 @@ if (!syncConfig) {
                     return;
                 }
 
-                const { [storageKeys.blockedSites]: urls, isGuest, activeSession } = await chrome.storage.local.get([
+                const {
+                    [storageKeys.blockedSites]: urls,
+                    [BLOCKED_SITE_SCHEDULES_KEY]: schedules,
+                    [BLOCKED_SITES_SIGNATURE_KEY]: storedSignature,
+                    isGuest,
+                    activeSession
+                } = await chrome.storage.local.get([
                     storageKeys.blockedSites,
+                    BLOCKED_SITE_SCHEDULES_KEY,
+                    BLOCKED_SITES_SIGNATURE_KEY,
                     'isGuest',
                     'activeSession'
                 ]);
-                
-                /** @type {ActiveSession | null} */
-                const session = /** @type {any} */ (activeSession);
 
-                if (isGuest && Array.isArray(urls)) {
-                    const currentLocalData = localStorage.getItem(storageKeys.guestSites);
-                    /** @type {LocalSite[]} */
-                    let currentSites = [];
-
-                    try {
-                        currentSites = currentLocalData ? JSON.parse(currentLocalData) : [];
-                    } catch (error) {
-                        console.error('CTRL+BLCK: Error parsing current local sites:', error);
-                    }
-
-                    // Use all urls from storage for comparison — do NOT strip the active session URL.
-                    // The session URL stays in the block list; content.js checkBlocking() handles the allow-override.
-                    /** @type {Map<string, LocalSite>} */
-                    const uniqueSitesMap = new Map();
-
-                    urls.forEach((/** @type {string} */ url) => {
-                        const cleanUrl = syncConfig.normalizeHostname(url);
-                        if (!cleanUrl) return;
-
-                        const id = `local_${btoa(cleanUrl).substring(0, 40)}`;
-                        const existingSite = currentSites.find((/** @type {LocalSite} */ site) => site.id === id || site.url === cleanUrl);
-
-                        if (!uniqueSitesMap.has(cleanUrl)) {
-                            uniqueSitesMap.set(cleanUrl, {
-                                id,
+                if (Array.isArray(urls)) {
+                    const normalizedSites = urls
+                        .map((/** @type {string} */ url) => {
+                            const cleanUrl = syncConfig.normalizeHostname(url);
+                            if (!cleanUrl) return null;
+                            return normalizeLocalSite({
+                                id: `local_${btoa(cleanUrl).substring(0, 40)}`,
                                 url: cleanUrl,
                                 user_id: 'guest',
                                 is_active: true,
-                                created_at: existingSite?.created_at || new Date().toISOString()
+                                created_at: new Date().toISOString(),
+                                access_window: schedules && typeof schedules === 'object' ? schedules[cleanUrl] || null : null
                             });
-                        }
-                    });
+                        })
+                        .filter(Boolean);
+                    const localState = readDashboardBlockedSites();
+                    const extensionSignature = readBlockedSitesSignature(storedSignature) || (scheduleUtils?.buildBlockedSitesSignature ? scheduleUtils.buildBlockedSitesSignature(normalizedSites) : '');
 
-                    const websiteSites = Array.from(uniqueSitesMap.values());
-
-                    const currentUrls = [...currentSites]
-                        .filter(site => site?.is_active !== false)
-                        .map(site => site.url)
-                        .sort()
-                        .join('|');
-
-                    const newUrls = [...websiteSites]
-                        .filter((s) => s !== null)
-                        .map((/** @type {LocalSite} */ site) => site.url)
-                        .sort()
-                        .join('|');
-
-                    if (currentUrls !== newUrls) {
-                        localStorage.setItem(storageKeys.guestSites, JSON.stringify(websiteSites));
+                    if (extensionSignature !== localState.signature) {
+                        writeLocalGuestSites(normalizedSites);
                         // Use ctrl-blck-ui-refresh (not ctrl-blck-sync) so the dashboard UI
                         // updates without triggering another full extension sync cycle.
                         window.dispatchEvent(new CustomEvent('ctrl-blck-ui-refresh'));
                     }
-                } else if (!isGuest && Array.isArray(urls)) {
-                    // Authenticated user — dashboard uses Supabase realtime, no dispatch needed.
                 }
             } catch (error) {
                 console.error('CTRL+BLCK: Error syncing extension to dashboard:', error);
@@ -316,15 +439,16 @@ if (!syncConfig) {
 
         syncDashboardToExtension();
         void syncExtensionToDashboard();
-        void publishSyncStatus();
+        schedulePublishStatus();
 
         window.addEventListener('storage', event => {
             if (
                 event.key === storageKeys.guestFlag ||
                 event.key === storageKeys.supabaseAuthToken ||
                 event.key === storageKeys.guestSites ||
-                event.key === 'dailyUnlockLimit' ||
-                event.key === 'tempAccessDuration'
+                event.key === BLOCKED_SITE_SCHEDULES_KEY ||
+                event.key === BLOCKED_SITES_SIGNATURE_KEY ||
+                event.key === 'activeSession'
             ) {
                 // Use debounced wrapper to prevent burst re-entry from rapid storage events
                 scheduleDashboardSync();
@@ -368,7 +492,7 @@ if (!syncConfig) {
         });
 
         window.addEventListener(SYNC_STATUS_REQUEST_EVENT, () => {
-            void publishSyncStatus();
+            schedulePublishStatus();
         });
 
         // ctrl-blck-ui-refresh: fired internally by syncExtensionToDashboard() when extension
@@ -390,13 +514,15 @@ if (!syncConfig) {
                 namespace === 'local' &&
                 (
                     changes[storageKeys.blockedSites] ||
+                    changes[BLOCKED_SITE_SCHEDULES_KEY] ||
+                    changes[BLOCKED_SITES_SIGNATURE_KEY] ||
                     changes[storageKeys.supabaseSession] ||
                     changes[LAST_SYNC_STATUS_KEY] ||
                     changes.isGuest ||
                     changes.activeSession
                 )
             ) {
-                void publishSyncStatus();
+                schedulePublishStatus();
             }
         });
 
@@ -409,12 +535,16 @@ if (!syncConfig) {
             if (message.action === messageActions.triggerSync) {
                 syncExtensionToDashboard();
             }
+            if (message.action === messageActions.requestDashboardSync) {
+                syncDashboardToExtension();
+            }
             if (message.action === 'clearLocalStorage') {
                 localStorage.removeItem(storageKeys.supabaseAuthToken);
                 localStorage.removeItem(storageKeys.supabaseSession);
                 if (message.clearGuestData) {
                     localStorage.removeItem(storageKeys.guestFlag);
                     localStorage.removeItem(storageKeys.guestSites);
+                    localStorage.removeItem(BLOCKED_SITE_SCHEDULES_KEY);
                     localStorage.removeItem(GUEST_FOCUS_SESSIONS_KEY);
                 }
                 window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
