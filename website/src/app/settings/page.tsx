@@ -41,8 +41,8 @@ export default function SettingsPage() {
         <Header />
         <main className="p-8 max-w-7xl mx-auto w-full">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 font-mono">Settings</h2>
-            <p className="text-gray-500">Configure CTRL+BLCK to suit your workflow.</p>
+            <h2 className="text-2xl font-bold text-gray-900 font-mono">SETTINGS</h2>
+            <p className="text-gray-500">CONFIGURE CTRL+BLCK TO SUIT YOUR WORKFLOW.</p>
           </div>
 
           <div className="space-y-6">
