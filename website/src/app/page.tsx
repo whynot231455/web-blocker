@@ -5,9 +5,9 @@ import { Shield, Zap, Target, ArrowRight, CheckCircle, XCircle, Clock } from 'lu
 
 export default function LandingPage() {
   return (
-    <div className="theme-static-light min-h-screen bg-white text-black font-mono">
+    <div className="theme-static-light min-h-screen bg-white text-black font-mono overflow-x-hidden">
       {/* Navbar */}
-      <nav className="flex items-center justify-between px-8 py-8 border-b-2 border-black sticky top-0 bg-white z-50 transform-gpu">
+      <nav className="flex items-center justify-between px-4 sm:px-8 py-6 sm:py-8 border-b-2 border-black sticky top-0 bg-white z-50 transform-gpu">
         <div className="flex items-center gap-4 flex-1">
           <Image
             src="/icons/logopic1-48.png"
@@ -30,32 +30,32 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-24 pb-32 border-b-2 border-black bg-white">
-        <div className="max-w-7xl mx-auto px-8 relative z-10">
+      <section className="relative py-16 sm:pt-24 sm:pb-32 border-b-2 border-black bg-white overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 relative z-10">
           <div className="text-center max-w-4xl mx-auto">
-            <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight leading-tight mb-8">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl font-black uppercase tracking-tight leading-tight mb-8">
               Reclaim your focus. <br />
-              <span className="bg-black text-white px-4 py-2 inline-block mt-2">
+              <span className="bg-black text-white px-3 py-2 sm:px-4 inline-block mt-2 max-w-full">
                 Block distractions.
               </span>
             </h1>
-            <p className="text-xs md:text-sm font-bold text-gray-700 mb-12 leading-relaxed uppercase tracking-wider max-w-2xl mx-auto">
+            <p className="text-[10px] sm:text-xs md:text-sm font-bold text-gray-700 mb-12 leading-relaxed uppercase tracking-wider max-w-2xl mx-auto">
               The lightweight Chrome Extension that helps you stay productive by blocking distracting websites with a seamless, synced experience.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-4 sm:gap-6 w-full max-w-xl mx-auto">
               <Link href="/login">
-                <button className="text-[12px] font-bold uppercase tracking-widest bg-black text-white px-10 py-6 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.2)] hover:shadow-[8px_8px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-transform transition-shadow duration-200 flex items-center gap-3">
+                <button className="w-full sm:w-auto text-[11px] sm:text-[12px] font-bold uppercase tracking-widest bg-black text-white px-6 sm:px-10 py-5 sm:py-6 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.2)] hover:shadow-[8px_8px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-transform transition-shadow duration-200 flex items-center justify-center gap-3">
                   Get Started <ArrowRight size={20} />
                 </button>
               </Link>
               <Link
                 href="/install"
-                className="text-[12px] font-bold uppercase tracking-widest bg-white text-black px-10 py-6 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.1)] hover:shadow-[8px_8px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-transform transition-shadow duration-200 inline-block text-center"
+                className="w-full sm:w-auto text-[11px] sm:text-[12px] font-bold uppercase tracking-widest bg-white text-black px-6 sm:px-10 py-5 sm:py-6 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.1)] hover:shadow-[8px_8px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-transform transition-shadow duration-200 inline-flex items-center justify-center text-center"
               >
                 Install Extension
               </Link>
             </div>
-            <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-[8px] font-bold uppercase tracking-widest text-gray-500">
+            <div className="mt-12 sm:mt-16 flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-[8px] font-bold uppercase tracking-widest text-gray-500">
               <div className="flex items-center gap-2"><CheckCircle size={16} className="text-black" /> Free forever</div>
               <div className="flex items-center gap-2"><CheckCircle size={16} className="text-black" /> Manifest V3 Ready</div>
             </div>
@@ -64,8 +64,8 @@ export default function LandingPage() {
       </section>
 
       {/* Features section */}
-      <section id="features" className="py-32 bg-gray-50 border-b-2 border-black">
-        <div className="max-w-7xl mx-auto px-8">
+      <section id="features" className="py-20 sm:py-32 bg-gray-50 border-b-2 border-black">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="text-center mb-20">
             <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight mb-6">Everything you need to focus</h2>
             <p className="text-[10px] font-bold text-gray-600 max-w-lg mx-auto uppercase tracking-widest leading-loose">Built for developers and deep-work enthusiasts who value their time.</p>
@@ -90,8 +90,8 @@ export default function LandingPage() {
       </section>
 
       {/* How it Works section */}
-      <section id="how-it-works" className="py-32 bg-white border-b-2 border-black">
-        <div className="max-w-7xl mx-auto px-8">
+      <section id="how-it-works" className="py-20 sm:py-32 bg-white border-b-2 border-black">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="text-center mb-24">
             <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight mb-6">How It Works</h2>
             <p className="text-[10px] font-bold text-gray-600 max-w-lg mx-auto uppercase tracking-widest leading-loose">
@@ -204,7 +204,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row items-center justify-between gap-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col md:flex-row items-center justify-between gap-10">
           <div className="flex items-center gap-3">
             <Image
               src="/icons/logopic1-48.png"
