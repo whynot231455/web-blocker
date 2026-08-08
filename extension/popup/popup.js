@@ -288,8 +288,9 @@ function showInternalPageMessage(url) {
         popup.innerHTML = '';
         popup.appendChild(messageDiv);
 
-        document.body.style.width = '300px';
-        document.body.style.height = '250px';
+        document.body.style.width = '320px';
+        document.body.style.height = 'auto';
+        document.body.style.overflow = 'hidden';
     }
 }
 

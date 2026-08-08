@@ -5,23 +5,41 @@
     font-style: normal;
 }
 
-* {
-    font-family: 'bitFont', sans-serif;
+html {
+    width: 320px;
+    max-width: 320px;
+    overflow: hidden;
 }
 
-/* Keep original body dimensions - no fixed width/height */
+* {
+    font-family: 'bitFont', sans-serif;
+    box-sizing: border-box;
+}
+
 body {
-    padding: 0.7rem;
+    width: 320px;
+    max-width: 320px;
+    min-height: 200px;
+    padding: 0.5rem;
     background: white;
     color: black;
     margin: 0;
+    overflow-x: hidden;
+}
+
+.popup {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .upper-container {
     display: flex;
-    justify-content: space-evenly;
-    gap: 20px;
+    justify-content: space-between;
+    gap: 10px;
     align-items: center;
+    padding: 0 5px;
 }
 
 .logo_pic {
@@ -29,24 +47,33 @@ body {
     height: 50px;
 }
 
-.main_heading {
-    font-size: 20px;
+.main_heading,
+.title {
+    font-size: 16px;
+    white-space: nowrap;
 }
 
 .sub_heading {
     text-align: center;
-    margin-left: 20px;
-    margin-bottom: 30px;
+    margin-left: 0;
+    margin-bottom: 20px;
+    font-size: 11px;
 }
 
 .home {
     cursor: pointer;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
 }
 
 .main_heading2 {
     text-align: left;
     width: 100%;
-    margin: 10px;
+    margin: 10px 0;
+    font-size: 11px;
+    white-space: nowrap;
+    box-sizing: border-box;
 }
 
 .list-container {
@@ -54,7 +81,8 @@ body {
     flex-direction: column;
     margin-top: 20px;
     width: 100%;
-    padding-left: 10px;
+    padding-left: 0;
+    box-sizing: border-box;
 }
 
 .list_table {
@@ -91,18 +119,16 @@ body {
     color: white;
     border: 4px solid black;
     border-radius: 15px;
-    padding: 20px 30px;
-    font-size: 15px;
+    padding: 15px 25px;
+    font-size: 13px;
     font-family: 'bitFont', sans-serif;
     letter-spacing: 1px;
     cursor: pointer;
     transition: transform 0.1s ease, background-color 0.1s ease, color 0.1s ease, box-shadow 0.1s ease;
     width: auto;
-    /* Allow width to adjust to content */
     height: auto;
-    /* Allow height to adjust to content */
-    margin-top: 24px;
-    margin-bottom: 24px;
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 .add_button:hover {
@@ -140,10 +166,16 @@ body {
 }
 
 .url-limit {
-    font-size: 10px;
+    font-size: 8px;
     color: #666;
     font-weight: normal;
     margin-left: 5px;
+}
+
+.url-container {
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 /* Confirmation Screen Styles */
@@ -257,15 +289,15 @@ body {
 .edit-url-button {
     background-color: #FF4141;
     color: white;
-    border: 4px solid #FF4141;
+    border: 3px solid black;
     border-radius: 10px;
-    padding: 10px 20px;
+    padding: 10px 18px;
     font-size: 10px;
     font-family: 'bitFont', sans-serif;
     cursor: pointer;
     transition: transform 0.1s ease, background-color 0.1s ease, color 0.1s ease, box-shadow 0.1s ease;
-    margin-top: 15px;
-    margin-bottom: 15px;
+    margin-top: 12px;
+    margin-bottom: 8px;
 }
 
 .edit-url-button:hover {
@@ -284,11 +316,12 @@ body {
 /* Internal page message styling */
 .internal-page-message {
     text-align: center;
-    padding: 20px 20px;
+    padding: 16px 14px;
     background: #fff;
     border-radius: 8px;
     font-family: 'bitFont', sans-serif;
-    height: 100%;
+    width: 100%;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -296,31 +329,32 @@ body {
 }
 
 .internal-page-message .message-icon {
-    font-size: 40px;
-    margin-bottom: 15px;
+    font-size: 36px;
+    margin-bottom: 10px;
 }
 
 .internal-page-message h3 {
-    font-size: 16px;
+    font-size: 14px;
     color: #FF4141;
-    margin: 10px 0 15px 0;
+    margin: 6px 0 10px 0;
     line-height: 1.4;
 }
 
 .internal-page-message p {
-    font-size: 11px;
-    color: #6c757d;
-    margin: 8px 0;
+    font-size: 10px;
+    color: #444;
+    margin: 5px 0;
     line-height: 1.4;
-    max-width: 250px;
+    max-width: 270px;
 }
 
 .internal-page-message .message-hint {
-    font-style: italic;
-    color: #495057;
-    margin-top: 15px;
+    font-style: normal;
+    color: #666;
+    margin-top: 10px;
+    font-size: 9px;
 }
 
 .internal-page-message strong {
-    color: #343a40;
+    color: #000;
 }
