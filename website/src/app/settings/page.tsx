@@ -72,34 +72,9 @@ export default function SettingsPage() {
               </div>
             ))}
           </div>
-
-          <div className="mt-10 p-6 bg-blue-600 rounded-xl text-white shadow-lg overflow-hidden relative">
-            <div className="relative z-10">
-              <h3 className="text-xl font-bold mb-2">Sync with Chrome Extension</h3>
-              <p className="max-w-md text-blue-100 mb-4 text-sm">
-                Ensure your blocked sites are synced across all your devices using our seamless Supabase integration.
-              </p>
-              <Button
-                variant="secondary"
-                className="text-blue-600 font-bold border-none shadow-md"
-                onClick={() => router.push('/settings/sync-status')}
-              >
-                View Sync Status
-              </Button>
-            </div>
-            <div className="absolute right-[-20px] top-[-20px] opacity-10">
-              <Zap size={150} />
-            </div>
-          </div>
         </main>
       </div>
     </div>
     </ExtensionGate>
   );
 }
-
-const Zap = ({ size, className }: { size: number, className?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-  </svg>
-);

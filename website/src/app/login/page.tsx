@@ -9,13 +9,26 @@ import Image from 'next/image';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const { continueAsGuest } = useAuth();
+  const [error, setError] = React.useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('error');
+  });
+  const { continueAsGuest, signInWithGoogle } = useAuth();
   const router = useRouter();
 
   const handleGuestContinue = () => {
     continueAsGuest();
     router.push('/dashboard');
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    setError(null);
+    const { error: signInError } = await signInWithGoogle();
+    if (signInError) {
+      setError(signInError.message);
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -52,16 +65,31 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Accounts Coming Soon Banner */}
-        <div className="mb-6 p-4 bg-yellow-50 border-2 border-yellow-400 text-yellow-800 text-center" style={{ fontSize: '8px', lineHeight: '1.8' }}>
-          <strong style={{ fontSize: '9px' }}>🔧 ACCOUNTS COMING SOON</strong>
-          <p className="mt-1" style={{ fontSize: '7px', color: '#92400E' }}>
-            Sign-in via Google / GitHub and email registration aren't ready yet.<br />
-            Use guest mode to start blocking sites right away — your data stays local until accounts launch.
+        {/* Accounts Banner */}
+        <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-400 text-blue-800 text-center" style={{ fontSize: '8px', lineHeight: '1.8' }}>
+          <strong style={{ fontSize: '9px' }}>🔑 SIGN IN WITH GOOGLE</strong>
+          <p className="mt-1" style={{ fontSize: '7px', color: '#1E40AF' }}>
+            Create an account or sign in to sync your blocked sites across devices.<br />
+            Prefer to keep everything on this device? Use guest mode below.
           </p>
         </div>
 
         <div className="space-y-4">
+          <button
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
+            className="w-full py-4 bg-white text-black border-2 border-black hover:bg-gray-100 transition-colors disabled:opacity-50 flex items-center justify-center gap-3"
+            style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.1em', boxShadow: '4px 4px 0px #000' }}
+          >
+            CONTINUE WITH GOOGLE
+          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1 border-t-2 border-gray-200" />
+            <span className="text-[8px] text-gray-400" style={{ letterSpacing: '0.1em' }}>OR</span>
+            <div className="flex-1 border-t-2 border-gray-200" />
+          </div>
+
           <button
             onClick={handleGuestContinue}
             disabled={isLoading}

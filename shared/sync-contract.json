@@ -2,8 +2,7 @@
   "extensionId": "keeojclinjkpflkdkmbhpmnfebkjoojl",
   "dashboardMetaName": "ctrl-blck-dashboard",
   "dashboardOrigins": [
-    "https://ctrl-blck.vercel.app",
-    "http://localhost:3000"
+    "https://ctrl-blck.vercel.app"
   ],
   "defaultDashboardOrigin": "https://ctrl-blck.vercel.app",
   "dashboardPaths": {
@@ -11,7 +10,7 @@
     "dashboard": "/dashboard"
   },
   "storageKeys": {
-    "supabaseAuthToken": "sb-laovgvktsxwiieuznnlm-auth-token",
+    "supabaseAuthToken": "sb-oufqvdkybwwdxobjchze-auth-token",
     "supabaseSession": "supabase_session",
     "dashboardOrigin": "dashboard_origin",
     "blockedSites": "urls",

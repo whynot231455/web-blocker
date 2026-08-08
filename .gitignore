@@ -10,6 +10,7 @@ node_modules
 # Extension secrets config
 extension/lib/config.ts
 extension/lib/config.js
+extension-dev/lib/config.js
 
 # Next.js
 .next/

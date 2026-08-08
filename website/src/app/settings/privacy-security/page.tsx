@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBlockedSites } from '@/hooks/useBlockedSites';
 import { SYNC_STORAGE_KEYS } from '@/config/sync';
 import { useRouter } from 'next/navigation';
+import { SignOutModal } from '@/components/auth/SignOutModal';
 import {
   Shield,
   Lock,
@@ -30,6 +31,7 @@ export default function PrivacySecurityPage() {
   const router = useRouter();
   const [status, setStatus] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user && !isGuest) {
@@ -59,7 +61,7 @@ export default function PrivacySecurityPage() {
     }
   };
 
-  const handleSignOut = async () => {
+  const handleSignOutConfirm = async () => {
     await signOut();
     router.push('/login');
   };
@@ -188,7 +190,7 @@ export default function PrivacySecurityPage() {
                     <RefreshCw size={16} className="mr-2" />
                     Check status
                   </Button>
-                  <Button variant="danger" onClick={handleSignOut}>
+                  <Button variant="danger" onClick={() => setIsSignOutModalOpen(true)}>
                     <LogOut size={16} className="mr-2" />
                     Sign out
                   </Button>
@@ -241,6 +243,11 @@ export default function PrivacySecurityPage() {
           </main>
         </div>
       </div>
+      <SignOutModal
+        isOpen={isSignOutModalOpen}
+        onClose={() => setIsSignOutModalOpen(false)}
+        onConfirm={handleSignOutConfirm}
+      />
     </ExtensionGate>
   );
 }

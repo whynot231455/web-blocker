@@ -10,6 +10,13 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: monorepoRoot,
   },
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'https', hostname: 'lh3.google.com' },
+      { protocol: 'https', hostname: 'www.google.com' },
+    ],
+  },
   async headers() {
     return [
       {
@@ -44,7 +51,7 @@ const nextConfig: NextConfig = {
               script-src 'self' 'unsafe-inline' https://*.supabase.co;
               style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
               font-src 'self' https://fonts.gstatic.com;
-              img-src 'self' data: https://*.supabase.co https://www.google.com https://*.google.com https://*.gstatic.com https://icon.horse;
+              img-src 'self' data: https://*.supabase.co https://*.google.com https://*.googleusercontent.com https://*.gstatic.com https://*.ggpht.com https://icon.horse;
               connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.google.com https://*.google.com https://*.gstatic.com;
               frame-src 'self' https://*.supabase.co;
               frame-ancestors 'none';
