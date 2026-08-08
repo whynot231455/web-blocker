@@ -29,3 +29,5 @@ npm-debug.log*
 .agents
 skills-lock.json
 website/node_modules
+
+extension-dev
