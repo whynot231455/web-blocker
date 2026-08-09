@@ -81,9 +81,10 @@ export const useBlockedSites = () => {
                 const uniqueMapped = Array.from(new Map(mapped.map(s => [s.url, s])).values());
                 setSites(uniqueMapped);
 
-                // Keep the local signature up-to-date so the extension can sync
+                // Keep the guestSites mirror + signature fresh so the extension's
+                // syncDashboardToExtension() never re-adds sites deleted here.
                 if (typeof window !== 'undefined') {
-                    localStorage.setItem(GUEST_SITES_SIGNATURE_KEY, buildSitesSignature(uniqueMapped));
+                    persistGuestSites(uniqueMapped);
                 }
             } else {
                 // ── Guest: read from localStorage ───────────────────────────
@@ -149,6 +150,7 @@ export const useBlockedSites = () => {
 
                 const updatedSites = [newSite, ...sites];
                 setSites(updatedSites);
+                persistGuestSites(updatedSites);
                 window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
                 return newSite;
             } else {
@@ -195,6 +197,7 @@ export const useBlockedSites = () => {
                 const updatedSite = normalizeSite(data);
                 const updatedSites = sites.map(site => site.id === id ? (updatedSite ?? site) : site);
                 setSites(updatedSites);
+                persistGuestSites(updatedSites);
                 window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
                 return updatedSite;
             } else {
@@ -229,12 +232,14 @@ export const useBlockedSites = () => {
                     .eq('user_id', user.id);
 
                 if (dbError) throw new Error(dbError.message);
-            } else {
-                const updatedSites = sites.filter(s => s.id !== id);
-                persistGuestSites(updatedSites);
             }
 
-            setSites(prev => prev.filter(s => s.id !== id));
+            const updatedSites = sites.filter(s => s.id !== id);
+            setSites(updatedSites);
+            // Keep the guestSites mirror fresh so syncDashboardToExtension() doesn't re-add the site
+            if (typeof window !== 'undefined') {
+                persistGuestSites(updatedSites);
+            }
             window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Failed to delete site';
@@ -258,14 +263,16 @@ export const useBlockedSites = () => {
                     .eq('user_id', user.id);
 
                 if (dbError) throw new Error(dbError.message);
-            } else {
-                const updatedSites = sites.map(s =>
-                    s.id === id ? { ...s, is_active: newStatus } : s
-                );
-                persistGuestSites(updatedSites);
             }
 
-            setSites(prev => prev.map(s => s.id === id ? { ...s, is_active: newStatus } : s));
+            const updatedSites = sites.map(s =>
+                s.id === id ? { ...s, is_active: newStatus } : s
+            );
+            setSites(updatedSites);
+            // Keep the guestSites mirror fresh so the extension sees the toggle immediately
+            if (typeof window !== 'undefined') {
+                persistGuestSites(updatedSites);
+            }
             window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Failed to toggle site';
