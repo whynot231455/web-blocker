@@ -13,10 +13,12 @@ import { getAccessWindowState } from '@/lib/schedule';
 import { SignOutModal } from '@/components/auth/SignOutModal';
 
 export default function AccountPage() {
-  const { user, isGuest, loading: authLoading, signOut } = useAuth();
+  const { user, isGuest, loading: authLoading, signOut, signInWithGoogle } = useAuth();
   const router = useRouter();
   const { sites } = useBlockedSites();
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
 
   const summary = useMemo(() => {
     const now = new Date();
@@ -57,6 +59,16 @@ export default function AccountPage() {
   const handleSignOutConfirm = async () => {
     await signOut();
     router.push('/login');
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    setGoogleError(null);
+    const { error: signInError } = await signInWithGoogle();
+    if (signInError) {
+      setGoogleError(signInError.message);
+      setIsGoogleLoading(false);
+    }
   };
 
   return (
@@ -142,19 +154,32 @@ export default function AccountPage() {
                 </p>
 
                 <div className="bg-white border-2 border-black shadow-[4px_4px_0px_#000] p-6 w-full max-w-lg mb-10 text-center">
-                  <div className="h-14 w-14 rounded-full bg-yellow-100 border-2 border-yellow-400 flex items-center justify-center mx-auto mb-4">
-                    <span className="text-xl">🔧</span>
+                  <div className="h-14 w-14 rounded-full bg-blue-100 border-2 border-blue-400 flex items-center justify-center mx-auto mb-4">
+                    <span className="text-xl">🔑</span>
                   </div>
                   <h3 className="font-black uppercase tracking-widest text-sm mb-2">
-                    Accounts Are Coming
+                    Sync Your Account
                   </h3>
-                  <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-                    We&apos;re building the full account system. For now, everything works
-                    locally in guest mode and stays on this device.
+                  <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+                    Sign in with Google to sync your blocked sites and focus
+                    sessions across devices.
                   </p>
-                  <div className="border-t border-gray-200 pt-4 mt-4">
-                    <p className="text-[10px] text-yellow-700 font-bold uppercase tracking-widest">
-                      🚧 Sign-up &amp; sign-in will be available in a future update
+                  {googleError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-400 text-red-700 text-[10px]">
+                      {googleError}
+                    </div>
+                  )}
+                  <button
+                    onClick={handleGoogleSignIn}
+                    disabled={isGoogleLoading}
+                    className="w-full py-4 bg-white text-black border-2 border-black hover:bg-gray-100 transition-colors disabled:opacity-50 flex items-center justify-center gap-3"
+                    style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.1em', boxShadow: '4px 4px 0px #000' }}
+                  >
+                    CONTINUE WITH GOOGLE
+                  </button>
+                  <div className="border-t border-gray-200 pt-4 mt-5">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">
+                      🔒 Your data stays private and secure
                     </p>
                   </div>
                 </div>

@@ -65,15 +65,6 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Accounts Banner */}
-        <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-400 text-blue-800 text-center" style={{ fontSize: '8px', lineHeight: '1.8' }}>
-          <strong style={{ fontSize: '9px' }}>🔑 SIGN IN WITH GOOGLE</strong>
-          <p className="mt-1" style={{ fontSize: '7px', color: '#1E40AF' }}>
-            Create an account or sign in to sync your blocked sites across devices.<br />
-            Prefer to keep everything on this device? Use guest mode below.
-          </p>
-        </div>
-
         <div className="space-y-4">
           <button
             onClick={handleGoogleSignIn}
