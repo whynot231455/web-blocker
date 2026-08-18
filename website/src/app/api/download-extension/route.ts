@@ -57,10 +57,11 @@ globalThis.CTRL_BLCK_CONFIG = {
         'Content-Disposition': 'attachment; filename=ctrl-blck-extension.zip',
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Download extension error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to generate extension zip';
     return NextResponse.json(
-      { error: error.message || 'Failed to generate extension zip' },
+      { error: message },
       { status: 500 }
     );
   }

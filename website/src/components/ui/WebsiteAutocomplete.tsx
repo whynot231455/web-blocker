@@ -34,21 +34,6 @@ export const WebsiteAutocomplete: React.FC<WebsiteAutocompleteProps> = ({
   }, [value]);
 
   useEffect(() => {
-    if (disabled) {
-      setShowSuggestions(false);
-      setSelectedIndex(-1);
-      return;
-    }
-    if (value.trim().length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setShowSuggestions(suggestions.length > 0);
-    } else {
-      setShowSuggestions(false);
-    }
-    setSelectedIndex(-1);
-  }, [value, suggestions.length, disabled]);
-
-  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
@@ -81,7 +66,11 @@ export const WebsiteAutocomplete: React.FC<WebsiteAutocompleteProps> = ({
         label="Website URL"
         placeholder="Search or type e.g. facebook.com"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setShowSuggestions(e.target.value.trim().length > 0);
+          if (e.target.value.trim().length === 0) setSelectedIndex(-1);
+        }}
         onKeyDown={handleKeyDown}
         onFocus={() => {
           if (!disabled && value.trim().length > 0) {
@@ -95,7 +84,7 @@ export const WebsiteAutocomplete: React.FC<WebsiteAutocompleteProps> = ({
         disabled={disabled}
       />
 
-      {showSuggestions && !disabled && (
+      {showSuggestions && !disabled && suggestions.length > 0 && (
         <div className="relative z-10 w-full mt-4 bg-white border-2 border-black shadow-[6px_6px_0px_#000]">
           <div className="bg-black text-white px-3 py-1 text-[8px] font-bold uppercase tracking-widest flex justify-between items-center">
             <span>Suggestions</span>

@@ -50,6 +50,9 @@ export function useExtensionSyncStatus() {
 
   useEffect(() => {
     if (extensionStatus === 'not_installed') {
+      // Sync React state to the extension-detection result (external system),
+      // not a derived render value — see react-hooks/set-state-in-effect.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSyncStatus({
         ...initialStatus,
         installed: false,
@@ -97,6 +100,7 @@ export function useExtensionSyncStatus() {
 
     window.addEventListener(RESPONSE_EVENT, handleResponse);
     window.addEventListener('ctrl-blck-pong', handlePong);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
 
     const timeout = window.setTimeout(() => {

@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Download, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useExtensionDetected } from '@/hooks/useExtensionDetected';
 
-const GITHUB_REPO_URL = 'https://github.com/whynot231455/web-blocker';
 const EXTENSION_ACK_KEY = 'ctrl_blck_extension_acknowledged';
 
 /**
@@ -30,12 +29,8 @@ function detectBrowser(): 'chrome' | 'unsupported' {
  */
 export function ExtensionGate({ children }: { children: React.ReactNode }) {
   const { status } = useExtensionDetected();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const browser = detectBrowser();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // ── Allow bypass if user previously acknowledged the extension ──
   const acknowledged =

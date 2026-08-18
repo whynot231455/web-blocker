@@ -12,7 +12,6 @@ import {
   Copy, 
   Check, 
   CheckCircle, 
-  AlertTriangle,
   ArrowRight,
   LogIn
 } from 'lucide-react';
@@ -206,8 +205,8 @@ export default function InstallPage() {
               </button>
 
               <div className="text-[9px] font-bold text-gray-600 leading-relaxed uppercase tracking-wider space-y-2">
-                <p>1. Enable <span className="font-black text-black">"Developer mode"</span> toggle switch in the top-right corner.</p>
-                <p>2. Click <span className="font-black text-black">"Load unpacked"</span> button in the top-left corner.</p>
+                <p>1. Enable <span className="font-black text-black">&quot;Developer mode&quot;</span> toggle switch in the top-right corner.</p>
+                <p>2. Click <span className="font-black text-black">&quot;Load unpacked&quot;</span> button in the top-left corner.</p>
                 <p>3. Select the extracted <span className="font-black text-black">ctrl-blck-extension</span> folder.</p>
               </div>
             </div>

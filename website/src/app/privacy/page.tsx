@@ -42,7 +42,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-sm font-black uppercase tracking-widest text-black mb-3">4. Third-Party Services</h2>
-            <p>We use <strong>Supabase</strong> for authentication when accounts launch. Supabase's privacy policy applies to any data stored on their platform. We do not use analytics trackers, ads, or cookies beyond what is strictly necessary for the extension to function.</p>
+            <p>We use <strong>Supabase</strong> for authentication when accounts launch. Supabase&apos;s privacy policy applies to any data stored on their platform. We do not use analytics trackers, ads, or cookies beyond what is strictly necessary for the extension to function.</p>
           </section>
 
           <section>

@@ -29,7 +29,7 @@ export const SignOutModal: React.FC<SignOutModalProps> = ({
     letterSpacing: '0.02em',
     lineHeight: 1.15,
     WebkitFontSmoothing: 'none',
-    textRendering: 'pixelated' as any,
+    textRendering: 'pixelated' as unknown as React.CSSProperties['textRendering'],
   };
 
   return (

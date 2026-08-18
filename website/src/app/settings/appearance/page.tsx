@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { CSSProperties, ComponentType } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
@@ -17,21 +17,17 @@ type ThemeMode = 'light' | 'dark';
 export default function AppearancePage() {
   const { user, isGuest, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [theme, setTheme] = useState<ThemeMode>('light');
-  const [mounted, setMounted] = useState(false);
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    const saved = typeof window !== 'undefined' ? window.localStorage.getItem(THEME_STORAGE_KEY) : null;
+    return saved === 'dark' ? 'dark' : 'light';
+  });
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
 
   useEffect(() => {
     if (!authLoading && !user && !isGuest) {
       router.push('/login');
     }
   }, [user, isGuest, authLoading, router]);
-
-  useEffect(() => {
-    setMounted(true);
-    const saved = typeof window !== 'undefined' ? window.localStorage.getItem(THEME_STORAGE_KEY) : null;
-    const initialTheme: ThemeMode = saved === 'dark' ? 'dark' : 'light';
-    setTheme(initialTheme);
-  }, []);
 
   useEffect(() => {
     if (!mounted) return;

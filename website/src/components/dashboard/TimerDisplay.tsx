@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface TimerDisplayProps {
   startTime: string;
@@ -50,7 +50,6 @@ export function TimerDisplay({ startTime, targetDurationMinutes, onComplete }: T
       }
     };
     // Only restart if the timer's fundamental params change, not on every onComplete rebind
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startTime, targetDurationMinutes]);
 
   const hours = Math.floor(timeLeft / 3600);

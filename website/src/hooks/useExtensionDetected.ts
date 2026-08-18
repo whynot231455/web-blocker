@@ -3,7 +3,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { EXTENSION_ID } from '@/config/sync';
 
-declare const chrome: any;
+interface ChromeRuntime {
+  sendMessage?: (
+    extensionId: string,
+    message: unknown,
+    callback?: (response?: { installed?: boolean }) => void
+  ) => void;
+  lastError?: { message?: string };
+}
+
+declare const chrome: { runtime?: ChromeRuntime };
 
 export type ExtensionStatus = 'checking' | 'installed' | 'not_installed';
 
@@ -69,16 +78,18 @@ export function useExtensionDetected() {
       // ── Strategy 1: chrome.runtime.sendMessage (externally_connectable) ──
       // The manifest declares this website's origin in externally_connectable.
       // We must specify the EXTENSION_ID to target the correct extension from the webpage.
-      if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+      const runtime = typeof chrome !== 'undefined' ? chrome.runtime : undefined;
+      const sendMessage = runtime?.sendMessage;
+      if (sendMessage) {
         try {
-          const response = await new Promise<{ installed: boolean } | undefined>(
+          const response = await new Promise<{ installed?: boolean } | undefined>(
             (resolve) => {
-              chrome.runtime.sendMessage(
+              sendMessage(
                 EXTENSION_ID,
                 { action: 'ping' },
-                (response: any) => {
+                (response?: { installed?: boolean }) => {
                   // Must check lastError to suppress Chrome's net::ERR_FAILED log
-                  if (chrome.runtime.lastError) {
+                  if (runtime?.lastError) {
                     resolve(undefined);
                     return;
                   }

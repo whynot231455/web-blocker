@@ -7,7 +7,7 @@ import { LayoutDashboard, Clock, Settings, CircleUser } from 'lucide-react';
 import Image from 'next/image';
 
 export const Sidebar: React.FC = () => {
-  const [isPinned, setIsPinned] = useState(false);
+  const [isPinned] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const pathname = usePathname();
 
