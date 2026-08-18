@@ -1,6 +1,7 @@
 const syncConfig = globalThis.CTRL_BLCK_SYNC;
 const storageKeys = syncConfig.storageKeys;
 const messageActions = syncConfig.messageActions;
+const guestSiteStore = globalThis.CTRL_BLCK_GUEST_SITE_STORE;
 
 /** @param {string} url */
 function extractHostname(url) {
@@ -45,14 +46,26 @@ const dashboardPaths = syncConfig.dashboardPaths;
 /**
  * @param {string[]} urls
  */
-function buildBlockedSitesSignature(urls) {
-    return Array.from(new Set(
-        (Array.isArray(urls) ? urls : [])
-            .map(url => syncConfig.normalizeHostname(url))
-            .filter(Boolean)
-    ))
-        .sort()
-        .join('|');
+async function getGuestSiteRecords() {
+    const result = await chrome.storage.local.get([
+        storageKeys.guestSiteRecords,
+        storageKeys.blockedSites,
+        storageKeys.blockedSiteSchedules
+    ]);
+    return Array.isArray(result[storageKeys.guestSiteRecords])
+        ? guestSiteStore.normalizeSites(result[storageKeys.guestSiteRecords])
+        : guestSiteStore.fromLegacyUrls(
+            result[storageKeys.blockedSites],
+            result[storageKeys.blockedSiteSchedules]
+        );
+}
+
+async function replaceGuestSiteRecords(sites) {
+    const response = await chrome.runtime.sendMessage({
+        action: messageActions.replaceGuestSites,
+        sites
+    });
+    if (!response?.success) throw new Error(response?.error || 'Failed to update guest sites');
 }
 
 // Global variables
@@ -116,13 +129,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Remove from DOM
                 listItem.remove();
 
-                // Remove from storage - compare by hostname
-                const urls = await getURLs();
-                const updatedURLs = urls.filter((/** @type {string} */ url) => syncConfig.normalizeHostname(url) !== hostname);
-                await chrome.storage.local.set({
-                    [storageKeys.blockedSites]: updatedURLs,
-                    [storageKeys.blockedSitesSignature]: buildBlockedSitesSignature(updatedURLs)
-                });
+                const { [storageKeys.supabaseSession]: supabaseSession, isGuest } = await chrome.storage.local.get([
+                    storageKeys.supabaseSession,
+                    'isGuest'
+                ]);
+                if (isGuest || !supabaseSession) {
+                    const sites = await getGuestSiteRecords();
+                    await replaceGuestSiteRecords(sites.filter(site => site.url !== hostname));
+                } else {
+                    const urls = await getURLs();
+                    const updatedURLs = urls.filter((/** @type {string} */ url) => syncConfig.normalizeHostname(url) !== hostname);
+                    await chrome.storage.local.set({ [storageKeys.blockedSites]: updatedURLs });
+                }
 
                 // Sync with Supabase if authenticated
                 // Note: content.js re-evaluates blocking via chrome.storage.onChanged.
@@ -397,7 +415,7 @@ async function add_elements() {
             return;
         }
 
-        const results = await chrome.storage.local.get([storageKeys.blockedSites, 'hiddenUrls']);
+        const results = await chrome.storage.local.get([storageKeys.blockedSites, 'hiddenUrls', storageKeys.supabaseSession, 'isGuest']);
         const URL_list = /** @type {string[]} */ (results[storageKeys.blockedSites] || []);
         const hidden_list = /** @type {string[]} */ (results.hiddenUrls || []);
 
@@ -417,11 +435,12 @@ async function add_elements() {
 
         if (!storedHostnames.includes(currentHostname)) {
             const normalizedHostname = syncConfig.normalizeHostname(currentTabURL);
-            const updatedURLs = [normalizedHostname, ...URL_list];
-            await chrome.storage.local.set({
-                [storageKeys.blockedSites]: updatedURLs,
-                [storageKeys.blockedSitesSignature]: buildBlockedSitesSignature(updatedURLs)
-            });
+            if (results.isGuest || !results[storageKeys.supabaseSession]) {
+                const sites = await getGuestSiteRecords();
+                await replaceGuestSiteRecords([{ url: normalizedHostname, is_active: true }, ...sites]);
+            } else {
+                await chrome.storage.local.set({ [storageKeys.blockedSites]: [normalizedHostname, ...URL_list] });
+            }
 
             // Note: content.js re-evaluates blocking via chrome.storage.onChanged.
             // Dashboard is notified by background.js after Supabase sync completes.
@@ -514,10 +533,14 @@ async function removeAll_elements() {
             }
         }
 
-        await chrome.storage.local.set({
-            [storageKeys.blockedSites]: [],
-            [storageKeys.blockedSitesSignature]: ''
-        });
+        if (isGuest || !supabaseSession) {
+            await replaceGuestSiteRecords([]);
+        } else {
+            await chrome.storage.local.set({
+                [storageKeys.blockedSites]: [],
+                [storageKeys.blockedSitesSignature]: ''
+            });
+        }
 
         // Note: content.js re-evaluates blocking via chrome.storage.onChanged.
         // Dashboard is notified by background.js after Supabase sync completes.

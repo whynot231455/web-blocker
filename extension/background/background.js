@@ -2,7 +2,9 @@
 // Load shared configuration (credentials, storage keys, message actions)
 importScripts('../lib/config.js');
 importScripts('../lib/url-utils.js');
+importScripts('../lib/schedule-utils.js');
 importScripts('../lib/sync-constants.js');
+importScripts('../lib/guest-site-store.js');
 
 const syncConfig = globalThis.CTRL_BLCK_SYNC;
 const SUPABASE_URL = syncConfig.supabaseUrl;
@@ -16,10 +18,12 @@ const STORAGE_KEYS = {
   blockedSiteSchedules: syncConfig.storageKeys.blockedSiteSchedules,
   blockedSitesSignature: syncConfig.storageKeys.blockedSitesSignature,
   guestFlag: syncConfig.storageKeys.guestFlag,
+  guestSiteRecords: syncConfig.storageKeys.guestSiteRecords,
   lastSyncStatus: 'lastSyncStatus'
 };
 
 const MESSAGE_ACTIONS = syncConfig.messageActions;
+const guestSiteStore = globalThis.CTRL_BLCK_GUEST_SITE_STORE;
 
 const DEFAULT_DASHBOARD_ORIGIN = syncConfig.defaultDashboardOrigin;
 const DASHBOARD_PATHS = {
@@ -31,21 +35,22 @@ const DASHBOARD_PATHS = {
  * @param {Record<string, { enabled?: boolean; start?: string; end?: string } | null>} [schedules]
  */
 function buildBlockedSitesSignature(urls, schedules = {}) {
-  return Array.from(new Set(
-    (Array.isArray(urls) ? urls : [])
-      .map(url => {
-        const normalized = normalizeHostname(url);
-        if (!normalized) return null;
-        const schedule = schedules && typeof schedules === 'object' ? schedules[normalized] || null : null;
-        const enabled = schedule && schedule.enabled !== false ? '1' : '0';
-        const start = schedule?.start || '';
-        const end = schedule?.end || '';
-        return `${normalized}:${enabled}:${start}:${end}`;
-      })
-      .filter(Boolean)
-  ))
-    .sort()
-    .join('|');
+  return guestSiteStore.project(guestSiteStore.fromLegacyUrls(urls, schedules)).signature;
+}
+
+async function replaceGuestSites(sites) {
+  const projection = guestSiteStore.project(sites);
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.guestSiteRecords]: projection.sites,
+    [STORAGE_KEYS.blockedSites]: projection.urls,
+    [STORAGE_KEYS.blockedSiteSchedules]: projection.schedules,
+    [STORAGE_KEYS.blockedSitesSignature]: projection.signature,
+    isGuest: true,
+    [STORAGE_KEYS.lastSyncStatus]: createSyncStatus('guest_local', {
+      blockedSiteCount: projection.urls.length
+    })
+  });
+  return { success: true, sites: projection.sites };
 }
 
 // Set to true to enable verbose sync logging. Mirrors debugMode in sync-constants.js.
@@ -123,10 +128,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         storageData[STORAGE_KEYS.blockedSiteSchedules] = message.siteSchedules && typeof message.siteSchedules === 'object'
           ? message.siteSchedules
           : {};
-        storageData[STORAGE_KEYS.blockedSitesSignature] = buildBlockedSitesSignature(
-          activeUrls,
-          storageData[STORAGE_KEYS.blockedSiteSchedules]
-        );
+        const fullSites = Array.isArray(message.sites)
+          ? message.sites
+          : normalizedUrls.map(url => ({
+              url,
+              is_active: siteStates[url] !== false,
+              access_window: storageData[STORAGE_KEYS.blockedSiteSchedules][url] || null
+            }));
+        const guestProjection = guestSiteStore.project(fullSites);
+        storageData[STORAGE_KEYS.blockedSitesSignature] = message.isGuest
+          ? guestProjection.signature
+          : buildBlockedSitesSignature(activeUrls, storageData[STORAGE_KEYS.blockedSiteSchedules]);
+        if (message.isGuest) {
+          storageData[STORAGE_KEYS.guestSiteRecords] = guestProjection.sites;
+        }
         // Persist dashboard add/remove/toggle actions to Supabase when authenticated.
         // Pass the FULL list (incl. toggled-off sites) so reconcile patches
         // is_active instead of deleting the rows. No-op in guest mode (no session)
@@ -205,6 +220,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === MESSAGE_ACTIONS.clearSitesFromSupabase) {
     clearSitesFromSupabase().then(res => sendResponse?.(res));
+    return true;
+  }
+
+  if (message.action === MESSAGE_ACTIONS.replaceGuestSites) {
+    replaceGuestSites(message.sites)
+      .then(res => sendResponse?.(res))
+      .catch(error => sendResponse?.({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update guest sites'
+      }));
     return true;
   }
 });
@@ -353,6 +378,7 @@ async function clearExtensionSessionState(options = {}) {
     nextState[STORAGE_KEYS.blockedSites] = [];
     nextState[STORAGE_KEYS.blockedSiteSchedules] = {};
     nextState[STORAGE_KEYS.blockedSitesSignature] = '';
+    nextState[STORAGE_KEYS.guestSiteRecords] = [];
   }
 
   nextState[STORAGE_KEYS.lastSyncStatus] = createSyncStatus(
@@ -668,12 +694,40 @@ async function notifyDashboardToRefresh() {
 }
 
 /**
+ * Ask all open dashboard tabs to reconcile their guest localStorage from the
+ * extension's current chrome.storage state (runs syncExtensionToDashboard in
+ * dashboard-sync.js). Used after extension-side mutations in guest mode so the
+ * dashboard copy isn't stale enough to re-push deleted sites back.
+ */
+async function notifyDashboardToReconcileFromExtension() {
+  try {
+    const result = await chrome.storage.local.get(STORAGE_KEYS.dashboardOrigin);
+    const origin = result[STORAGE_KEYS.dashboardOrigin] || DEFAULT_DASHBOARD_ORIGIN;
+    const tabs = await chrome.tabs.query({ url: `${origin}/*` });
+
+    for (const tab of tabs) {
+      if (tab.id !== undefined) {
+        chrome.tabs.sendMessage(tab.id, { action: MESSAGE_ACTIONS.triggerSync }).catch(() => {
+          // Tab may not have the content script loaded yet — safe to ignore
+        });
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to notify dashboard to reconcile:', error);
+  }
+}
+
+/**
  * @param {string} hostname
  */
 async function deleteSiteFromSupabase(hostname) {
   try {
     const session = await getSession();
     if (!session?.access_token) {
+      // Guest mode — the popup already removed the site from chrome.storage.local.
+      // Ask any open dashboard tabs to reconcile their guest localStorage from the
+      // extension, so the deleted site isn't re-pushed back on the next sync.
+      await notifyDashboardToReconcileFromExtension();
       return { success: false, error: 'Not authenticated' };
     }
 

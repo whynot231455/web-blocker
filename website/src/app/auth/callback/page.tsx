@@ -16,10 +16,22 @@ function AuthCallback() {
             return;
         }
 
-        // Implicit flow: supabase-js automatically parses the URL fragment
-        // (#access_token=...&refresh_token=...) on page load and stores the
-        // session in localStorage. Poll briefly to confirm the session landed
-        // before redirecting so useAuth picks it up cleanly.
+        const code = searchParams.get('code');
+
+        // OAuth uses PKCE in current Supabase clients. Explicitly exchange the
+        // authorization code rather than relying on automatic URL detection.
+        if (code) {
+            void supabase.auth.exchangeCodeForSession(code).then(({ error: exchangeError }) => {
+                if (exchangeError) {
+                    router.replace(`/login?error=${encodeURIComponent(exchangeError.message)}`);
+                } else {
+                    router.replace('/dashboard');
+                }
+            });
+            return;
+        }
+
+        // Keep the fragment-based fallback for any existing implicit-flow links.
         let attempts = 0;
         const check = async () => {
             const { data: { session } } = await supabase.auth.getSession();

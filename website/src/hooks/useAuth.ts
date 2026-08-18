@@ -72,6 +72,25 @@ export const useAuth = () => {
             }
         );
 
+        // OAuth can finish immediately before this hook mounts. Confirm the
+        // persisted session independently of the initial auth event so the
+        // dashboard cannot remain in guest mode after a successful callback.
+        void supabase.auth.getSession().then(({ data: { session } }) => {
+            if (!mounted || !session?.user) return;
+
+            setUser(session.user);
+            setIsGuest(false);
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem(GUEST_FLAG_KEY);
+            }
+            persistSessionToSync(session);
+
+            if (!initialEventFired.current) {
+                initialEventFired.current = true;
+                setLoading(false);
+            }
+        });
+
         // Fallback: if onAuthStateChange somehow never fires (e.g., no network),
         // resolve loading after a short timeout to avoid infinite spinner.
         const fallbackTimer = setTimeout(() => {
@@ -89,13 +108,20 @@ export const useAuth = () => {
 
     const signInWithOAuth = useCallback(async (provider: Provider) => {
         if (typeof window === 'undefined') return { error: null };
-        const { error } = await supabase.auth.signInWithOAuth({
+        const { data, error } = await supabase.auth.signInWithOAuth({
             provider,
             options: {
-                redirectTo: `${window.location.origin}/auth/callback`
+                redirectTo: `${window.location.origin}/auth/callback`,
+                // Navigate explicitly so OAuth works consistently from the account
+                // page and failures remain visible to the calling UI.
+                skipBrowserRedirect: true
             }
         });
-        return { error };
+        if (error) return { error };
+        if (!data.url) return { error: new Error('Google sign-in URL was not returned') };
+
+        window.location.assign(data.url);
+        return { error: null };
     }, []);
 
     const signInWithGoogle = useCallback(

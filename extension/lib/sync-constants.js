@@ -17,7 +17,8 @@ globalThis.CTRL_BLCK_SYNC = {
         blockedSiteSchedules: 'blocked_site_schedules',
         blockedSitesSignature: 'ctrl_blck_sites_signature',
         guestFlag: 'ctrl_blck_guest',
-        guestSites: 'ctrl_blck_sites'
+        guestSites: 'ctrl_blck_sites',
+        guestSiteRecords: 'ctrl_blck_guest_site_records'
     },
     messageActions: {
         syncSession: 'syncSession',
@@ -33,7 +34,8 @@ globalThis.CTRL_BLCK_SYNC = {
         syncSettings: 'syncSettings',
         getSyncStatus: 'getSyncStatus',
         syncStatusUpdated: 'syncStatusUpdated',
-        requestDashboardSync: 'requestDashboardSync'
+        requestDashboardSync: 'requestDashboardSync',
+        replaceGuestSites: 'replaceGuestSites'
     },
     /**
      * @param {string} url

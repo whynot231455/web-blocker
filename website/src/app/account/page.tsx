@@ -77,7 +77,7 @@ export default function AccountPage() {
         <Sidebar />
         <div className="flex-1 flex flex-col" style={{ marginLeft: '84px' }}>
           <Header />
-          <main className="p-8 max-w-3xl mx-auto w-full flex flex-col items-center justify-center" style={{ minHeight: 'calc(100vh - 72px)' }}>
+          <main className="p-8 max-w-3xl mx-auto w-full flex flex-col items-center justify-start" style={{ minHeight: 'calc(100vh - 72px)' }}>
             {user ? (
               <>
                 <div className="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 border-4 border-white shadow-md mb-6 overflow-hidden">

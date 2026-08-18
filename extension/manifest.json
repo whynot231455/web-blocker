@@ -55,6 +55,7 @@
         "lib/url-utils.js",
         "lib/schedule-utils.js",
         "lib/sync-constants.js",
+        "lib/guest-site-store.js",
         "content/dashboard-sync.js"
       ],
       "run_at": "document_idle"

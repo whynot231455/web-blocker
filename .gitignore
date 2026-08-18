@@ -27,6 +27,10 @@ Thumbs.db
 npm-debug.log*
 
 .agents
+.claude
+AGENTS.md
+CLAUDE.md
+PROJECT.md
 skills-lock.json
 website/node_modules
 

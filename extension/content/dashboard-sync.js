@@ -27,6 +27,7 @@ if (!syncConfig) {
         messageActions
     } = syncConfig;
     const GUEST_FOCUS_SESSIONS_KEY = 'guest_focus_sessions';
+    const guestSiteStore = globalThis.CTRL_BLCK_GUEST_SITE_STORE;
     const LAST_SYNC_STATUS_KEY = 'lastSyncStatus';
     const SYNC_STATUS_REQUEST_EVENT = 'ctrl-blck-sync-status-request';
     const SYNC_STATUS_RESPONSE_EVENT = 'ctrl-blck-sync-status-response';
@@ -48,7 +49,6 @@ if (!syncConfig) {
             window.dispatchEvent(new CustomEvent('ctrl-blck-pong', { detail: { installed: true } }));
         });
 
-        let lastDashboardUpdate = 0;
         const DEBUG = syncConfig.debugMode;
 
         // Debounce wrapper for syncDashboardToExtension — prevents burst re-entry
@@ -150,14 +150,19 @@ if (!syncConfig) {
         }
 
         /**
-         * @returns {Promise<{ sites: LocalSite[]; signature: string }>}
+         * @returns {Promise<{ sites: LocalSite[]; signature: string; hasCanonicalRecords: boolean }>}
          */
         async function readExtensionBlockedSites() {
             const result = await chrome.storage.local.get([
                 storageKeys.blockedSites,
                 BLOCKED_SITE_SCHEDULES_KEY,
-                BLOCKED_SITES_SIGNATURE_KEY
+                BLOCKED_SITES_SIGNATURE_KEY,
+                storageKeys.guestSiteRecords
             ]);
+            if (Array.isArray(result[storageKeys.guestSiteRecords])) {
+                const projection = guestSiteStore.project(result[storageKeys.guestSiteRecords]);
+                return { sites: projection.sites, signature: projection.signature, hasCanonicalRecords: true };
+            }
             const urls = Array.isArray(result[storageKeys.blockedSites])
                 ? result[storageKeys.blockedSites]
                 : [];
@@ -180,7 +185,8 @@ if (!syncConfig) {
 
             return {
                 sites,
-                signature: readBlockedSitesSignature(result[BLOCKED_SITES_SIGNATURE_KEY]) || (scheduleUtils?.buildBlockedSitesSignature ? scheduleUtils.buildBlockedSitesSignature(sites) : '')
+                signature: readBlockedSitesSignature(result[BLOCKED_SITES_SIGNATURE_KEY]) || (scheduleUtils?.buildBlockedSitesSignature ? scheduleUtils.buildBlockedSitesSignature(sites) : ''),
+                hasCanonicalRecords: false
             };
         }
 
@@ -227,8 +233,6 @@ if (!syncConfig) {
 
         async function syncDashboardToExtension() {
             try {
-                lastDashboardUpdate = Date.now();
-
                 const canSync = await isActiveDashboardOrigin();
                 if (!canSync) {
                     return;
@@ -306,12 +310,21 @@ if (!syncConfig) {
                 }
 
                 const extensionState = await readExtensionBlockedSites();
+                if (!sessionData && extensionState.hasCanonicalRecords && localSignature !== extensionState.signature) {
+                    // A popup mutation may have reached chrome.storage while this tab still
+                    // holds an older localStorage cache. The canonical extension state wins;
+                    // never turn that mismatch into an outgoing stale write.
+                    writeLocalGuestSites(extensionState.sites);
+                    window.dispatchEvent(new CustomEvent('ctrl-blck-ui-refresh'));
+                    return;
+                }
                 const shouldPushUrls = localSignature !== extensionState.signature || Boolean(normalizedActiveSession);
 
                 if ((effectiveGuestStatus || urls.length > 0 || normalizedActiveSession) && shouldPushUrls) {
                     safeSend({
                         action: messageActions.syncUrls,
                         urls: Array.from(new Set(urls)),
+                        sites: normalizedSites,
                         siteSchedules,
                         siteStates: siteActiveStates,
                         activeSession: normalizedActiveSession,
@@ -395,23 +408,35 @@ if (!syncConfig) {
 
         async function syncExtensionToDashboard() {
             try {
-                if (Date.now() - lastDashboardUpdate < 1000) {
+                // Signed-in dashboards are sourced from Supabase. Guest records must
+                // never be copied over that state or reconciled into the account.
+                if (localStorage.getItem(storageKeys.supabaseAuthToken)) return;
+                const extensionState = await readExtensionBlockedSites();
+                const dashboardState = readDashboardBlockedSites();
+                if (extensionState.hasCanonicalRecords) {
+                    // Extension storage is authoritative once canonical records exist.
+                    // Replacing, rather than merging, prevents a stale dashboard cache
+                    // from resurrecting a site removed from the popup.
+                    if (extensionState.signature !== dashboardState.signature) {
+                        writeLocalGuestSites(extensionState.sites);
+                        window.dispatchEvent(new CustomEvent('ctrl-blck-ui-refresh'));
+                    }
                     return;
                 }
+                if (extensionState.sites.length > 0) {
+                    // One-time legacy migration: the extension is the source of truth for
+                    // the blocker, even when an older dashboard localStorage cache also
+                    // contains sites. This prevents the two pre-canonical stores from
+                    // remaining split forever.
+                    writeLocalGuestSites(extensionState.sites);
+                    window.dispatchEvent(new CustomEvent('ctrl-blck-ui-refresh'));
+                }
+                return;
 
-                const {
-                    [storageKeys.blockedSites]: urls,
-                    [BLOCKED_SITE_SCHEDULES_KEY]: schedules,
-                    isGuest,
-                    activeSession
-                } = await chrome.storage.local.get([
-                    storageKeys.blockedSites,
-                    BLOCKED_SITE_SCHEDULES_KEY,
-                    'isGuest',
-                    'activeSession'
-                ]);
-
-                if (Array.isArray(urls)) {
+                // Legacy merge path retained below for source compatibility. It is
+                // intentionally unreachable: canonical records or the migration flow
+                // above now decide the direction of synchronization.
+                if (!extensionState.hasCanonicalRecords) {
                     const extensionSites = urls
                         .map((/** @type {string} */ url) => {
                             const cleanUrl = syncConfig.normalizeHostname(url);
@@ -468,8 +493,10 @@ if (!syncConfig) {
             }
         }
 
-        syncDashboardToExtension();
-        void syncExtensionToDashboard();
+        void (async () => {
+            await syncExtensionToDashboard();
+            await syncDashboardToExtension();
+        })();
         schedulePublishStatus();
 
         window.addEventListener('storage', event => {
@@ -497,7 +524,6 @@ if (!syncConfig) {
             // If we have manual session data, trigger an immediate sync bypass
             if (manualActiveSession) {
                 // We still want to do a full sync eventually, but let's push the session NOW
-                lastDashboardUpdate = Date.now();
                 const sessionUrl = manualActiveSession.url ? syncConfig.normalizeHostname(manualActiveSession.url) : null;
                 
                 safeSend({
@@ -538,7 +564,7 @@ if (!syncConfig) {
          * @param {string} namespace
          */
         chrome.storage.onChanged.addListener((changes, namespace) => {
-            if (namespace === 'local' && (changes[storageKeys.blockedSites] || changes.isGuest)) {
+            if (namespace === 'local' && (changes[storageKeys.guestSiteRecords] || changes[storageKeys.blockedSites] || changes.isGuest)) {
                 void syncExtensionToDashboard();
             }
             if (
