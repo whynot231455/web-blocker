@@ -11,7 +11,7 @@
     "dev:web": "npm run config:extension && npm run dev -w website",
     "build:web": "npm run config:extension && npm run build -w website",
     "lint:web": "npm run lint -w website",
-    "test": "node --test \"*.test.js\"",
+    "test": "node --test ./*.test.js",
     "config:extension": "node scripts/generate-extension-config.js",
     "build:extension:dev": "npm run config:extension && node scripts/build-extension-dev.js"
   },
