@@ -30,9 +30,17 @@ jobs:
         run: npm run typecheck -w website
 
       - name: Create env file
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
-          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" > website/.env.local
-          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" >> website/.env.local
+          # Pull requests from forks do not receive repository secrets. The
+          # build only needs valid-shaped values; runtime credentials are not
+          # used by CI.
+          : "${SUPABASE_URL:=https://ci-placeholder.supabase.co}"
+          : "${SUPABASE_ANON_KEY:=ci-placeholder-anon-key}"
+          echo "NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}" > website/.env.local
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> website/.env.local
           echo "NEXT_PUBLIC_SKIP_EXTENSION_CHECK=true" >> website/.env.local
 
       - name: Build website
