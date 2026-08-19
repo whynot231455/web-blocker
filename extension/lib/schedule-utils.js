@@ -1,6 +1,10 @@
 /**
- * Shared access-window utilities for CTRL+BLCK.
+ * Shared block-window utilities for CTRL+BLCK.
  * Guarded against double-declaration in the extension content-script world.
+ *
+ * A saved window defines the period during which a site is BLOCKED.
+ * Outside the window the site is accessible. No window (or a disabled one)
+ * means the site stays blocked at all times.
  */
 
 if (!globalThis.CTRL_BLCK_SCHEDULE_UTILS) {
@@ -62,29 +66,35 @@ function getAccessWindowState(window, now = new Date()) {
     const dayStart = new Date(now);
     dayStart.setHours(0, 0, 0, 0);
 
-    let allowed = false;
+    // True when the current time falls inside the block window.
+    const inWindow = crossesMidnight
+        ? currentMinutes >= startMinutes || currentMinutes < endMinutes
+        : currentMinutes >= startMinutes && currentMinutes < endMinutes;
+
     let nextTransitionAt = null;
 
     if (crossesMidnight) {
-        allowed = currentMinutes >= startMinutes || currentMinutes < endMinutes;
-        if (allowed) {
-            if (currentMinutes >= startMinutes) {
-                const tomorrow = new Date(dayStart);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                nextTransitionAt = tomorrow.getTime() + (endMinutes * 60 * 1000);
-            } else {
-                nextTransitionAt = dayStart.getTime() + (endMinutes * 60 * 1000);
-            }
+        if (currentMinutes >= startMinutes) {
+            // Inside the [start, 24:00) leg — blocking ends at 'end' tomorrow.
+            const tomorrow = new Date(dayStart);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            nextTransitionAt = tomorrow.getTime() + (endMinutes * 60 * 1000);
+        } else if (currentMinutes < endMinutes) {
+            // Inside the [00:00, end) leg — blocking ends at 'end' today.
+            nextTransitionAt = dayStart.getTime() + (endMinutes * 60 * 1000);
         } else {
+            // In the allowed gap between 'end' and 'start' — blocking begins at 'start' today.
             nextTransitionAt = dayStart.getTime() + (startMinutes * 60 * 1000);
         }
     } else {
-        allowed = currentMinutes >= startMinutes && currentMinutes < endMinutes;
-        if (allowed) {
-            nextTransitionAt = dayStart.getTime() + (endMinutes * 60 * 1000);
-        } else if (currentMinutes < startMinutes) {
+        if (currentMinutes < startMinutes) {
+            // Before the window — blocking begins at 'start' today.
             nextTransitionAt = dayStart.getTime() + (startMinutes * 60 * 1000);
+        } else if (currentMinutes < endMinutes) {
+            // Inside the window — blocking ends at 'end' today.
+            nextTransitionAt = dayStart.getTime() + (endMinutes * 60 * 1000);
         } else {
+            // After the window — blocking begins at 'start' tomorrow.
             const tomorrow = new Date(dayStart);
             tomorrow.setDate(tomorrow.getDate() + 1);
             nextTransitionAt = tomorrow.getTime() + (startMinutes * 60 * 1000);
@@ -92,7 +102,7 @@ function getAccessWindowState(window, now = new Date()) {
     }
 
     return {
-        allowed,
+        allowed: !inWindow,
         configured: true,
         nextTransitionAt
     };

@@ -217,6 +217,12 @@ export const useBlockedSites = () => {
         }
     };
 
+    // Remove only the time-window configuration. The site remains in the main
+    // dashboard block list and therefore returns to all-day blocking.
+    const removeSiteSchedule = async (id: string): Promise<BlockedSite | null> => {
+        return updateSiteSchedule(id, null);
+    };
+
     // ─────────────────────────────────────────────────────────────────────────
     // Delete a site
     // ─────────────────────────────────────────────────────────────────────────
@@ -314,6 +320,7 @@ export const useBlockedSites = () => {
         error,
         addSite,
         updateSiteSchedule,
+        removeSiteSchedule,
         deleteSite,
         toggleSite,
         refresh: fetchSites

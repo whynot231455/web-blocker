@@ -131,7 +131,7 @@ export default function SyncStatusPage() {
               />
               <StatusCard
                 icon={BadgeCheck}
-                label="Saved Windows"
+                label="Saved Block Windows"
                 value={scheduleSummary.scheduledSites.toString()}
                 detail={`Allowed now: ${scheduleSummary.allowedNow}, blocked now: ${scheduleSummary.blockedNow}.`}
               />
