@@ -212,14 +212,14 @@
 
     function formatScheduleText(schedule, configured) {
         if (!configured || !schedule || !schedule.start || !schedule.end) {
-            return 'No valid access window is saved for this site, so it remains blocked.';
+            return 'No block window is saved for this site, so it remains blocked.';
         }
 
         if (schedule.enabled === false) {
-            return `Access window ${schedule.start} to ${schedule.end} is disabled, so this site remains blocked.`;
+            return `Block window ${schedule.start} to ${schedule.end} is disabled, so this site remains blocked.`;
         }
 
-        return `Access window: ${schedule.start} to ${schedule.end} local time.`;
+        return `This site is blocked from ${schedule.start} to ${schedule.end} local time.`;
     }
 
     function removeBlockingOverlay() {

@@ -150,7 +150,7 @@ export default function AccountPage() {
                 </h2>
                 <p className="text-gray-500 text-center mb-10 max-w-sm">
                   You&apos;re using Ctrl+Blck in guest mode. Your blocked sites and
-                  access windows are stored locally in your browser.
+                  block windows are stored locally in your browser.
                 </p>
 
                 <div className="bg-white border-2 border-black shadow-[4px_4px_0px_#000] p-6 w-full max-w-lg mb-10 text-center">
@@ -196,7 +196,7 @@ export default function AccountPage() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500 flex items-center gap-2">
-                      <Clock3 size={14} /> Access Windows
+                      <Clock3 size={14} /> Block Windows
                     </span>
                     <span className="font-bold">{summary.scheduledSites}</span>
                   </div>

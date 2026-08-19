@@ -139,9 +139,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         storageData[STORAGE_KEYS.blockedSitesSignature] = message.isGuest
           ? guestProjection.signature
           : buildBlockedSitesSignature(activeUrls, storageData[STORAGE_KEYS.blockedSiteSchedules]);
-        if (message.isGuest) {
-          storageData[STORAGE_KEYS.guestSiteRecords] = guestProjection.sites;
-        }
+        storageData[STORAGE_KEYS.guestSiteRecords] = guestProjection.sites;
         // Persist dashboard add/remove/toggle actions to Supabase when authenticated.
         // Pass the FULL list (incl. toggled-off sites) so reconcile patches
         // is_active instead of deleting the rows. No-op in guest mode (no session)
@@ -428,7 +426,7 @@ async function syncFromSupabase() {
 
     // Fetch blocked sites
     const sitesPromise = fetch(
-      `${SUPABASE_URL}/rest/v1/blocked_sites?select=url,is_active&user_id=eq.${session.user_id}`,
+      `${SUPABASE_URL}/rest/v1/blocked_sites?select=url,is_active,access_window&user_id=eq.${session.user_id}`,
       { headers: buildHeaders(session.access_token) }
     );
 
@@ -469,10 +467,26 @@ async function syncFromSupabase() {
     const allBlockedUrls = Array.from(new Set(blockedSitesUrls))
       .filter(u => u !== null);
 
+    // Carry each site's block window so content.js can enforce schedules.
+    const schedules = {};
+    for (const site of (Array.isArray(sitesData) ? sitesData : [])) {
+      const url = site && site.url ? normalizeHostname(site.url) : null;
+      if (url) schedules[url] = (site && site.access_window) || null;
+    }
+
+    const guestProjection = guestSiteStore.project(
+      (Array.isArray(sitesData) ? sitesData : []).map(site => ({
+        url: site?.url,
+        is_active: site?.is_active,
+        access_window: site?.access_window || null
+      }))
+    );
+
     await chrome.storage.local.set({ 
         [STORAGE_KEYS.blockedSites]: allBlockedUrls,
-        [STORAGE_KEYS.blockedSiteSchedules]: {},
-        [STORAGE_KEYS.blockedSitesSignature]: buildBlockedSitesSignature(allBlockedUrls, {}),
+        [STORAGE_KEYS.blockedSiteSchedules]: schedules,
+        [STORAGE_KEYS.blockedSitesSignature]: buildBlockedSitesSignature(allBlockedUrls, schedules),
+        [STORAGE_KEYS.guestSiteRecords]: guestProjection.sites,
         activeSession: activeSession,
         [STORAGE_KEYS.lastSyncStatus]: createSyncStatus('synced', {
           blockedSiteCount: allBlockedUrls.length

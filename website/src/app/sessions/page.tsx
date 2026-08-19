@@ -37,10 +37,11 @@ const DEFAULT_WINDOW: SiteDraft = {
 
 export default function SessionsPage() {
   const { user, isGuest, loading: authLoading } = useAuth();
-  const { sites, loading: sitesLoading, error, addSite, deleteSite, updateSiteSchedule } = useBlockedSites();
+  const { sites, loading: sitesLoading, error, addSite, removeSiteSchedule, updateSiteSchedule } = useBlockedSites();
   const router = useRouter();
   const [nowTick, setNowTick] = useState(Date.now());
   const [newUrl, setNewUrl] = useState('');
+  const [selectedSiteId, setSelectedSiteId] = useState('');
   const [newWindow, setNewWindow] = useState<SiteDraft>(DEFAULT_WINDOW);
   const [drafts, setDrafts] = useState<Record<string, SiteDraft>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -78,7 +79,9 @@ export default function SessionsPage() {
   }
 
   const now = new Date(nowTick);
-  const siteStates = sites.map((site) => {
+  const scheduledSites = sites.filter((site) => site.access_window !== null);
+  const eligibleDashboardSites = sites.filter((site) => site.access_window === null && site.is_active !== false);
+  const siteStates = scheduledSites.map((site) => {
     const effectiveWindow = draftToWindow(drafts[site.id] || windowToDraft(site.access_window));
     const state = getAccessWindowState(effectiveWindow, now);
 
@@ -90,7 +93,7 @@ export default function SessionsPage() {
     };
   });
 
-  const totalSites = sites.length;
+  const totalSites = scheduledSites.length;
   const allowedNowCount = siteStates.filter((item) => item.site.is_active !== false && item.state.allowed).length;
   const blockedNowCount = siteStates.filter((item) => item.site.is_active !== false && !item.state.allowed).length;
 
@@ -102,7 +105,18 @@ export default function SessionsPage() {
 
     setNewUrl('');
     setNewWindow(DEFAULT_WINDOW);
-    setStatusMessage(`${created.url} added with its access window.`);
+    setStatusMessage(`${created.url} added to the dashboard and Saved block windows.`);
+  };
+
+  const handleAddExistingSite = async () => {
+    if (!selectedSiteId) return;
+
+    const saved = await updateSiteSchedule(selectedSiteId, draftToWindow(newWindow));
+    if (!saved) return;
+
+    setSelectedSiteId('');
+    setNewWindow(DEFAULT_WINDOW);
+    setStatusMessage(`${saved.url} added to Saved block windows.`);
   };
 
   const handleSaveWindow = async (siteId: string) => {
@@ -115,7 +129,24 @@ export default function SessionsPage() {
           ...current,
           [siteId]: windowToDraft(saved.access_window),
         }));
-        setStatusMessage(`Saved access window for ${saved.url}.`);
+        setStatusMessage(`Saved block window for ${saved.url}.`);
+      }
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleRemoveWindow = async (siteId: string) => {
+    setSavingId(siteId);
+    try {
+      const saved = await removeSiteSchedule(siteId);
+      if (saved) {
+        setDrafts((current) => {
+          const next = { ...current };
+          delete next[siteId];
+          return next;
+        });
+        setStatusMessage(`${saved.url} remains blocked on the dashboard, without a saved block window.`);
       }
     } finally {
       setSavingId(null);
@@ -133,7 +164,7 @@ export default function SessionsPage() {
               <div className="max-w-3xl">
                 <h2 className="text-3xl font-black uppercase tracking-tighter">Sessions</h2>
                 <p className="mt-3 max-w-2xl text-[11px] font-bold uppercase tracking-widest text-gray-600 leading-relaxed">
-                  Each blocked site is only reachable during its saved daily window. If the schedule is missing, disabled, or invalid, the site stays blocked.
+                  Dashboard sites stay blocked all day by default. Add a site here only when you want it blocked during a saved daily window instead.
                 </p>
               </div>
 
@@ -161,7 +192,7 @@ export default function SessionsPage() {
             )}
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3 mb-10">
-              <StatsCard title="Blocked Sites" value={totalSites.toString()} icon={Globe2} color="blue" />
+              <StatsCard title="Saved Windows" value={totalSites.toString()} icon={Globe2} color="blue" />
               <StatsCard title="Allowed Now" value={allowedNowCount.toString()} icon={CheckCircle2} color="green" />
               <StatsCard title="Blocked Now" value={blockedNowCount.toString()} icon={Slash} color="purple" />
             </div>
@@ -170,9 +201,9 @@ export default function SessionsPage() {
               <section className="border-2 border-black bg-white p-6 shadow-[8px_8px_0px_#000]">
                 <div className="mb-6 flex items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest">Add website</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest">Add block window</h3>
                     <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                      Define the time window before saving. Outside that window, the site remains blocked.
+                      Create a new dashboard site or add a window to an existing dashboard site.
                     </p>
                   </div>
                   <RefreshCw size={16} className="text-gray-400" />
@@ -180,7 +211,7 @@ export default function SessionsPage() {
 
                 <div className="grid gap-4">
                   <label className="grid gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Website</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">New website</span>
                     <input
                       value={newUrl}
                       onChange={(e) => setNewUrl(e.target.value)}
@@ -191,7 +222,7 @@ export default function SessionsPage() {
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <label className="grid gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Allow from</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Block from</span>
                       <input
                         type="time"
                         value={newWindow.start}
@@ -200,7 +231,7 @@ export default function SessionsPage() {
                       />
                     </label>
                     <label className="grid gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Allow until</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Block until</span>
                       <input
                         type="time"
                         value={newWindow.end}
@@ -216,22 +247,46 @@ export default function SessionsPage() {
                     className="inline-flex items-center justify-center gap-2 border-2 border-black bg-black px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-[4px_4px_0px_#000] transition-all hover:translate-x-[2px] hover:translate-y-[2px] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600 disabled:shadow-none"
                   >
                     <Plus size={14} />
-                    Add blocked site
+                    Add new site with window
                   </button>
+
+                  <div className="border-t-2 border-dashed border-gray-200 pt-4">
+                    <label className="grid gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Or choose a dashboard site</span>
+                      <select
+                        value={selectedSiteId}
+                        onChange={(e) => setSelectedSiteId(e.target.value)}
+                        className="border-2 border-black bg-white px-4 py-3 text-sm font-bold outline-none focus:bg-white"
+                      >
+                        <option value="">Select a blocked website</option>
+                        {eligibleDashboardSites.map((site) => (
+                          <option key={site.id} value={site.id}>{site.url}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      onClick={handleAddExistingSite}
+                      disabled={!selectedSiteId}
+                      className="mt-4 inline-flex w-full items-center justify-center gap-2 border-2 border-black bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0px_#000] transition-all hover:bg-gray-100 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 disabled:shadow-none"
+                    >
+                      <Plus size={14} />
+                      Add selected site to saved windows
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-6 border-t-2 border-dashed border-gray-200 pt-5">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 leading-relaxed">
-                    Example: 01:00 to 05:00 means the site is accessible only during that daily window. Overnight windows are supported.
+                    Example: 01:00 to 05:00 means the site is blocked only during that daily window. Overnight windows are supported.
                   </p>
                 </div>
               </section>
 
               <section className="border-2 border-black bg-white shadow-[8px_8px_0px_#000]">
                 <div className="border-b-2 border-black px-6 py-5">
-                  <h3 className="text-sm font-black uppercase tracking-widest">Saved access windows</h3>
+                  <h3 className="text-sm font-black uppercase tracking-widest">Saved block windows</h3>
                   <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                    Update the window, save it, or disable enforcement for a site.
+                    Updating a window affects only scheduled blocking. Removing it keeps the site in the dashboard block list.
                   </p>
                 </div>
 
@@ -239,11 +294,11 @@ export default function SessionsPage() {
                   <div className="p-8 text-center text-[10px] font-bold uppercase tracking-widest text-gray-400">
                     Loading your sites...
                   </div>
-                ) : sites.length === 0 ? (
+                ) : scheduledSites.length === 0 ? (
                   <div className="p-10 text-center">
                     <TriangleAlert size={32} className="mx-auto mb-4 text-gray-300" />
                     <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 leading-relaxed">
-                      No blocked sites yet. Add one above and give it a valid access window.
+                      No saved block windows yet. Choose a dashboard site above or add a new website with a window.
                     </p>
                   </div>
                 ) : (
@@ -291,10 +346,13 @@ export default function SessionsPage() {
                                   />
                                 </button>
                                 <button
-                                  onClick={() => deleteSite(site.id)}
-                                  className="border-2 border-black bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest shadow-[3px_3px_0px_#000] transition-all hover:bg-red-50"
+                                  onClick={() => handleRemoveWindow(site.id)}
+                                  disabled={savingId === site.id}
+                                  aria-label={`Remove saved block window for ${site.url}`}
+                                  className="inline-flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest shadow-[3px_3px_0px_#000] transition-all hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 disabled:shadow-none"
                                 >
-                                  <Trash2 size={14} className="inline-block -translate-y-px" />
+                                  <Trash2 size={14} />
+                                  Remove window
                                 </button>
                               </div>
                             </div>
@@ -302,7 +360,7 @@ export default function SessionsPage() {
                             <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
                               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <label className="grid gap-2">
-                                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Allow from</span>
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Block from</span>
                                   <input
                                     type="time"
                                     value={draft.start}
@@ -318,7 +376,7 @@ export default function SessionsPage() {
                                 </label>
 
                                 <label className="grid gap-2">
-                                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Allow until</span>
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Block until</span>
                                   <input
                                     type="time"
                                     value={draft.end}
@@ -352,12 +410,12 @@ export default function SessionsPage() {
                               </span>
                               {crossesMidnight && (
                                 <span className="inline-flex items-center gap-2 border-2 border-gray-200 bg-white px-3 py-2">
-                                  Overnight window
+Overnight block window
                                 </span>
                               )}
                               {!effectiveWindow && (
                                 <span className="inline-flex items-center gap-2 border-2 border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
-                                  No valid window saved. The site stays blocked.
+                                  No block window saved. The site stays blocked.
                                 </span>
                               )}
                               {state.allowed && site.is_active !== false && (
@@ -401,9 +459,9 @@ function windowToDraft(window: AccessWindow | null | undefined): SiteDraft {
 }
 
 function formatWindowLabel(window: AccessWindow | null | undefined) {
-  if (!window) return 'No schedule saved';
-  if (window.enabled === false) return `${window.start} to ${window.end} is disabled`;
-  return `${window.start} to ${window.end} local time`;
+  if (!window) return 'No block window saved';
+  if (window.enabled === false) return `${window.start} to ${window.end} — block window disabled`;
+  return `Blocked ${window.start} to ${window.end}`;
 }
 
 function getSiteStatusLabel(isActive: boolean, window: AccessWindow | null, state: { allowed: boolean }) {
@@ -411,14 +469,14 @@ function getSiteStatusLabel(isActive: boolean, window: AccessWindow | null, stat
     return { state: 'neutral' as const, text: 'Not enforced' };
   }
   if (!window) {
-    return { state: 'warning' as const, text: 'Blocked until a valid window is saved' };
+    return { state: 'warning' as const, text: 'Blocked — no block window saved' };
   }
   if (!window.enabled) {
-    return { state: 'neutral' as const, text: 'Schedule disabled, site blocked' };
+    return { state: 'neutral' as const, text: 'Block window disabled — site always blocked' };
   }
   if (state.allowed) {
     return { state: 'success' as const, text: 'Currently accessible' };
   }
-  return { state: 'danger' as const, text: 'Blocked until the next allowed time' };
+  return { state: 'danger' as const, text: 'Blocked — inside the block window' };
 }
 
