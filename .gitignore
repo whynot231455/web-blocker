@@ -26,11 +26,20 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+# Agent & Memory files
 .agents
 .claude
+.codex
+.cursor
+.continuum/
+.github/copilot-instructions.md
 AGENTS.md
 CLAUDE.md
+GEMINI.md
 PROJECT.md
+DECISIONS.md
+IMPLEMENTED.md
+TASKS.md
 skills-lock.json
 website/node_modules
 
