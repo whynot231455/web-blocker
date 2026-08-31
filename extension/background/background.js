@@ -415,13 +415,18 @@ async function syncFromSupabase() {
       return { success: false, error: 'Not authenticated' };
     }
 
-    // Check if the token is expired before making requests
+    // An expired *access* token is normal — it lives ~1 hour, and the website
+    // (which owns the refresh token) silently mints a new one. The extension
+    // has no refresh token, so it must NOT treat this as a dead session.
+    // Clearing state here — and especially asking the dashboard to clear it —
+    // wipes Supabase's own auth storage on the site and logs the user out for
+    // good, dropping them to guest mode. Instead, keep the snapshot and ask any
+    // open dashboard tab to push a freshly-refreshed token.
     if (isTokenExpired(session.access_token)) {
-      console.warn('Supabase token expired, clearing stale session');
-      await clearExtensionSessionState();
-      await saveSyncStatus('error', { error: 'Token expired - re-sync from dashboard' });
-      await notifyDashboardToClearSession({ clearGuestData: false });
-      return { success: false, error: 'Token expired — re-sync from dashboard' };
+      if (DEBUG_MODE) console.log('Access token stale; requesting a fresh token from the dashboard');
+      await saveSyncStatus('error', { error: 'Access token stale — open the dashboard to refresh' });
+      await handleRequestDashboardSync();
+      return { success: false, error: 'Access token stale — awaiting refresh from dashboard' };
     }
 
     // Fetch blocked sites
@@ -440,10 +445,13 @@ async function syncFromSupabase() {
 
     // Handle 401 — token was rejected by server
     if (sitesResponse.status === 401 || sessionsResponse.status === 401) {
-      console.warn('Supabase returned 401, clearing stale session');
+      console.warn('Supabase returned 401; dropping the extension session snapshot and asking the dashboard to re-sync');
+      // Only the extension's own chrome.storage copy is cleared here. The
+      // website keeps its session and refresh token — a still-valid session
+      // will re-push a working token on the next dashboard sync.
       await clearExtensionSessionState();
       await saveSyncStatus('error', { error: 'Token rejected - re-sync from dashboard' });
-      await notifyDashboardToClearSession({ clearGuestData: false });
+      await handleRequestDashboardSync();
       return { success: false, error: 'Token rejected — re-sync from dashboard' };
     }
 

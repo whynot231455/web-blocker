@@ -13,8 +13,18 @@ export default function LoginPage() {
     if (typeof window === 'undefined') return null;
     return new URLSearchParams(window.location.search).get('error');
   });
-  const { continueAsGuest, signInWithGoogle } = useAuth();
+  const { user, loading, continueAsGuest, signInWithGoogle } = useAuth();
   const router = useRouter();
+
+  // A returning visitor whose Google session is still valid should never see
+  // the login form — send them straight to the dashboard. useAuth restores the
+  // persisted Supabase session before `loading` clears, so this also covers
+  // "the browser remembers I logged in before".
+  React.useEffect(() => {
+    if (!loading && user) {
+      router.replace('/dashboard');
+    }
+  }, [loading, user, router]);
 
   const handleGuestContinue = () => {
     continueAsGuest();
@@ -30,6 +40,19 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  // While the persisted session is being restored — or a redirect to the
+  // dashboard is already queued — don't flash the login form.
+  if (loading || user) {
+    return (
+      <div
+        className="theme-static-light min-h-screen flex items-center justify-center bg-white"
+        style={{ fontFamily: "'Press Start 2P', cursive" }}
+      >
+        <p style={{ fontSize: '8px', letterSpacing: '0.1em' }}>LOADING...</p>
+      </div>
+    );
+  }
 
   return (
     <div

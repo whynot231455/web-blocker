@@ -7,6 +7,10 @@ import { SYNC_STORAGE_KEYS } from '@/config/sync';
 
 type Provider = 'google' | 'github';
 
+/** Extra options for an OAuth sign-in. `prompt` is forwarded to the provider
+ *  (e.g. `'select_account'` to force the account chooser when switching). */
+type OAuthOptions = { prompt?: 'select_account' | 'consent' | 'login' };
+
 const GUEST_FLAG_KEY = SYNC_STORAGE_KEYS.guestFlag;
 const AUTH_TOKEN_KEY = SYNC_STORAGE_KEYS.supabaseAuthToken;
 
@@ -106,7 +110,7 @@ export const useAuth = () => {
         };
     }, [persistSessionToSync]);
 
-    const signInWithOAuth = useCallback(async (provider: Provider) => {
+    const signInWithOAuth = useCallback(async (provider: Provider, options?: OAuthOptions) => {
         if (typeof window === 'undefined') return { error: null };
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider,
@@ -114,23 +118,27 @@ export const useAuth = () => {
                 redirectTo: `${window.location.origin}/auth/callback`,
                 // Navigate explicitly so OAuth works consistently from the account
                 // page and failures remain visible to the calling UI.
-                skipBrowserRedirect: true
+                skipBrowserRedirect: true,
+                // "Switch account" passes prompt: 'select_account' so the provider
+                // shows its account chooser instead of silently re-using the
+                // currently signed-in identity.
+                ...(options?.prompt ? { queryParams: { prompt: options.prompt } } : {})
             }
         });
         if (error) return { error };
-        if (!data.url) return { error: new Error('Google sign-in URL was not returned') };
+        if (!data.url) return { error: new Error('Sign-in URL was not returned') };
 
         window.location.assign(data.url);
         return { error: null };
     }, []);
 
     const signInWithGoogle = useCallback(
-        () => signInWithOAuth('google'),
+        (options?: OAuthOptions) => signInWithOAuth('google', options),
         [signInWithOAuth]
     );
 
     const signInWithGithub = useCallback(
-        () => signInWithOAuth('github'),
+        (options?: OAuthOptions) => signInWithOAuth('github', options),
         [signInWithOAuth]
     );
 

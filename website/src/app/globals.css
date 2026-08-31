@@ -287,3 +287,71 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #FF4141;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Global scrollbar — same brutalist treatment as .custom-scrollbar so the
+   page / any overflow container matches the rest of the site instead of
+   falling back to the rounded grey browser default.
+   ───────────────────────────────────────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #000000 #f0f0f0;
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-left: 2px solid #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #000000;
+  border: 1px solid #ffffff;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FF4141;
+}
+
+::-webkit-scrollbar-corner {
+  background: #f0f0f0;
+}
+
+[data-ctrl-blck-theme='dark'] * {
+  scrollbar-color: #ffffff #111111;
+}
+
+[data-ctrl-blck-theme='dark'] ::-webkit-scrollbar-track,
+[data-ctrl-blck-theme='dark'] ::-webkit-scrollbar-corner {
+  background: #111111;
+  border-left: 2px solid #ffffff;
+}
+
+[data-ctrl-blck-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: #ffffff;
+  border: 1px solid #000000;
+}
+
+[data-ctrl-blck-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background: #FF4141;
+}
+
+/* Pages pinned to light (login / auth callback) keep the light scrollbar. */
+[data-ctrl-blck-theme='dark'] .theme-static-light * {
+  scrollbar-color: #000000 #f0f0f0;
+}
+
+[data-ctrl-blck-theme='dark'] .theme-static-light ::-webkit-scrollbar-track,
+[data-ctrl-blck-theme='dark'] .theme-static-light ::-webkit-scrollbar-corner {
+  background: #f0f0f0;
+  border-left: 2px solid #000000;
+}
+
+[data-ctrl-blck-theme='dark'] .theme-static-light ::-webkit-scrollbar-thumb {
+  background: #000000;
+  border: 1px solid #ffffff;
+}

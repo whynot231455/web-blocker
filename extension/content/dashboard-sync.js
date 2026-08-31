@@ -596,7 +596,12 @@ if (!syncConfig) {
                 syncDashboardToExtension();
             }
             if (message.action === 'clearLocalStorage') {
-                localStorage.removeItem(storageKeys.supabaseAuthToken);
+                // NEVER remove storageKeys.supabaseAuthToken here. That key is
+                // owned by supabase-js on the website and also holds the refresh
+                // token; deleting it logs the user out permanently and drops
+                // them to guest mode. A genuine sign-out is driven by the
+                // website itself (useAuth.signOut); the extension only ever
+                // needs to clear guest data.
                 localStorage.removeItem(storageKeys.supabaseSession);
                 if (message.clearGuestData) {
                     localStorage.removeItem(storageKeys.guestFlag);

@@ -4,21 +4,23 @@ import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
-import { BadgeCheck, Clock3, LogOut, Shield, User } from 'lucide-react';
+import { BadgeCheck, Clock3, LogOut, Repeat, Shield, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { ExtensionGate } from '@/components/layout/ExtensionGate';
 import { useRouter } from 'next/navigation';
 import { useBlockedSites } from '@/hooks/useBlockedSites';
 import { getAccessWindowState } from '@/lib/schedule';
 import { SignOutModal } from '@/components/auth/SignOutModal';
+import { SwitchAccountModal } from '@/components/auth/SwitchAccountModal';
 
 export default function AccountPage() {
-  const { user, isGuest, loading: authLoading, signOut, signInWithGoogle } = useAuth();
+  const { user, isGuest, loading: authLoading, signOut, signInWithGoogle, signInWithGithub } = useAuth();
   const router = useRouter();
   const { sites } = useBlockedSites();
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
+  const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
 
   const summary = useMemo(() => {
     const now = new Date();
@@ -69,6 +71,15 @@ export default function AccountPage() {
       setGoogleError(signInError.message);
       setIsGoogleLoading(false);
     }
+  };
+
+  // Switch account: re-run the OAuth flow with prompt: 'select_account' so the
+  // provider shows its account chooser. The /auth/callback exchange then
+  // replaces the current session with the newly-picked one.
+  const handleSwitchProvider = async (provider: 'google' | 'github') => {
+    const signIn = provider === 'google' ? signInWithGoogle : signInWithGithub;
+    const { error: switchErr } = await signIn({ prompt: 'select_account' });
+    return { error: switchErr ? switchErr.message : null };
   };
 
   return (
@@ -129,6 +140,15 @@ export default function AccountPage() {
                     Your blocked sites and focus sessions are synced to your account and enforced by the extension across devices.
                   </p>
                 </div>
+
+                <button
+                  onClick={() => setIsSwitchModalOpen(true)}
+                  className="w-full max-w-lg py-4 mb-6 bg-white text-black border-2 border-black hover:bg-gray-100 transition-colors flex items-center justify-center gap-3"
+                  style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.1em', boxShadow: '4px 4px 0px #000' }}
+                >
+                  <Repeat size={16} />
+                  SWITCH ACCOUNT
+                </button>
 
                 <button
                   onClick={() => setIsSignOutModalOpen(true)}
@@ -226,6 +246,13 @@ export default function AccountPage() {
         onClose={() => setIsSignOutModalOpen(false)}
         onConfirm={handleSignOutConfirm}
       />
+      {isSwitchModalOpen && (
+        <SwitchAccountModal
+          isOpen
+          onClose={() => setIsSwitchModalOpen(false)}
+          onSelectProvider={handleSwitchProvider}
+        />
+      )}
     </ExtensionGate>
   );
 }
