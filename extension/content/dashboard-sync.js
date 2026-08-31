@@ -150,18 +150,20 @@ if (!syncConfig) {
         }
 
         /**
-         * @returns {Promise<{ sites: LocalSite[]; signature: string; hasCanonicalRecords: boolean }>}
+         * @returns {Promise<{ sites: LocalSite[]; signature: string; hasCanonicalRecords: boolean; updatedAt: number }>}
          */
         async function readExtensionBlockedSites() {
             const result = await chrome.storage.local.get([
                 storageKeys.blockedSites,
                 BLOCKED_SITE_SCHEDULES_KEY,
                 BLOCKED_SITES_SIGNATURE_KEY,
-                storageKeys.guestSiteRecords
+                storageKeys.guestSiteRecords,
+                storageKeys.sitesUpdatedAt
             ]);
+            const updatedAt = Number(result[storageKeys.sitesUpdatedAt]) || 0;
             if (Array.isArray(result[storageKeys.guestSiteRecords])) {
                 const projection = guestSiteStore.project(result[storageKeys.guestSiteRecords]);
-                return { sites: projection.sites, signature: projection.signature, hasCanonicalRecords: true };
+                return { sites: projection.sites, signature: projection.signature, hasCanonicalRecords: true, updatedAt };
             }
             const urls = Array.isArray(result[storageKeys.blockedSites])
                 ? result[storageKeys.blockedSites]
@@ -186,7 +188,8 @@ if (!syncConfig) {
             return {
                 sites,
                 signature: readBlockedSitesSignature(result[BLOCKED_SITES_SIGNATURE_KEY]) || (scheduleUtils?.buildBlockedSitesSignature ? scheduleUtils.buildBlockedSitesSignature(sites) : ''),
-                hasCanonicalRecords: false
+                hasCanonicalRecords: false,
+                updatedAt
             };
         }
 
@@ -310,10 +313,23 @@ if (!syncConfig) {
                 }
 
                 const extensionState = await readExtensionBlockedSites();
-                if (!sessionData && extensionState.hasCanonicalRecords && localSignature !== extensionState.signature) {
-                    // A popup mutation may have reached chrome.storage while this tab still
-                    // holds an older localStorage cache. The canonical extension state wins;
-                    // never turn that mismatch into an outgoing stale write.
+                // Last-writer-wins: the extension may only revert the dashboard when
+                // the extension state is at least as recent as the dashboard's last
+                // mutation. A freshly added dashboard site must be PUSHED, not clobbered.
+                const dashboardUpdatedAt = Number(localStorage.getItem(storageKeys.sitesUpdatedAt)) || 0;
+                // Canonical records seeded empty by clearExtensionSessionState (no
+                // timestamp) are placeholders, not a real popup mutation — never let
+                // them erase a non-empty dashboard list.
+                const seededEmptyRecords = extensionState.sites.length === 0
+                    && extensionState.updatedAt === 0
+                    && sites.length > 0;
+                const extensionIsAuthoritative = extensionState.hasCanonicalRecords
+                    && !seededEmptyRecords
+                    && extensionState.updatedAt >= dashboardUpdatedAt;
+                if (!sessionData && extensionIsAuthoritative && localSignature !== extensionState.signature) {
+                    // A popup mutation reached chrome.storage more recently than this
+                    // tab's last dashboard mutation. The extension state wins; never
+                    // turn that mismatch into an outgoing stale write.
                     writeLocalGuestSites(extensionState.sites);
                     window.dispatchEvent(new CustomEvent('ctrl-blck-ui-refresh'));
                     return;
@@ -414,10 +430,14 @@ if (!syncConfig) {
                 const extensionState = await readExtensionBlockedSites();
                 const dashboardState = readDashboardBlockedSites();
                 if (extensionState.hasCanonicalRecords) {
-                    // Extension storage is authoritative once canonical records exist.
+                    // Extension storage is authoritative once canonical records exist,
+                    // but only when it is at least as recent as the dashboard's last
+                    // mutation — otherwise a popup change would revert a fresher
+                    // dashboard edit before it could be pushed.
                     // Replacing, rather than merging, prevents a stale dashboard cache
                     // from resurrecting a site removed from the popup.
-                    if (extensionState.signature !== dashboardState.signature) {
+                    const dashboardUpdatedAt = Number(localStorage.getItem(storageKeys.sitesUpdatedAt)) || 0;
+                    if (extensionState.signature !== dashboardState.signature && extensionState.updatedAt >= dashboardUpdatedAt) {
                         writeLocalGuestSites(extensionState.sites);
                         window.dispatchEvent(new CustomEvent('ctrl-blck-ui-refresh'));
                     }

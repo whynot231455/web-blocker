@@ -19,6 +19,7 @@ const STORAGE_KEYS = {
   blockedSitesSignature: syncConfig.storageKeys.blockedSitesSignature,
   guestFlag: syncConfig.storageKeys.guestFlag,
   guestSiteRecords: syncConfig.storageKeys.guestSiteRecords,
+  sitesUpdatedAt: syncConfig.storageKeys.sitesUpdatedAt,
   lastSyncStatus: 'lastSyncStatus'
 };
 
@@ -45,6 +46,9 @@ async function replaceGuestSites(sites) {
     [STORAGE_KEYS.blockedSites]: projection.urls,
     [STORAGE_KEYS.blockedSiteSchedules]: projection.schedules,
     [STORAGE_KEYS.blockedSitesSignature]: projection.signature,
+    // Last-writer-wins marker: popup mutations must be able to win the
+    // bidirectional sync against a dashboard tab holding an older list.
+    [STORAGE_KEYS.sitesUpdatedAt]: Date.now(),
     isGuest: true,
     [STORAGE_KEYS.lastSyncStatus]: createSyncStatus('guest_local', {
       blockedSiteCount: projection.urls.length
@@ -254,6 +258,22 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
  */
 
 /**
+ * @typedef {Object} ActiveSession
+ * @property {string} url
+ * @property {string} [start_time]
+ * @property {number} [target_duration]
+ * @property {string} [status]
+ */
+
+/**
+ * @typedef {Object} SyncStatus
+ * @property {'synced' | 'guest_local' | 'not_authenticated' | 'error'} [state]
+ * @property {string | null} [lastSyncedAt]
+ * @property {string | null} [error]
+ * @property {number} [blockedSiteCount]
+ */
+
+/**
  * @param {string} accessToken
  */
 function buildHeaders(accessToken) {
@@ -297,6 +317,7 @@ async function saveSyncStatus(state, options = {}) {
 }
 
 async function getSyncStatus() {
+  /** @type {Record<string, any>} */
   const result = await chrome.storage.local.get([
     STORAGE_KEYS.blockedSites,
     STORAGE_KEYS.supabaseSession,
@@ -305,10 +326,13 @@ async function getSyncStatus() {
     'activeSession'
   ]);
 
+  /** @type {string[]} */
   const urls = Array.isArray(result[STORAGE_KEYS.blockedSites]) ? result[STORAGE_KEYS.blockedSites] : [];
+  /** @type {SyncStatus | null} */
   const lastStatus = result[STORAGE_KEYS.lastSyncStatus] || null;
   const isGuest = result.isGuest === true;
   const hasSession = Boolean(result[STORAGE_KEYS.supabaseSession]);
+  /** @type {ActiveSession | null} */
   const activeSession = result.activeSession || null;
   const state = lastStatus?.state || (hasSession ? 'synced' : isGuest ? 'guest_local' : 'not_authenticated');
 
@@ -476,6 +500,7 @@ async function syncFromSupabase() {
       .filter(u => u !== null);
 
     // Carry each site's block window so content.js can enforce schedules.
+    /** @type {Record<string, { enabled?: boolean; start?: string; end?: string } | null>} */
     const schedules = {};
     for (const site of (Array.isArray(sitesData) ? sitesData : [])) {
       const url = site && site.url ? normalizeHostname(site.url) : null;
@@ -660,11 +685,15 @@ async function reconcileBlockedSitesWithSupabase(urls, siteStates = {}) {
     if (!response.ok) return;
 
     const rows = await response.json();
-    const dbMap = new Map(
-      (Array.isArray(rows) ? rows : [])
-        .map(row => [normalizeHostname(row && row.url), row && row.is_active !== false])
-        .filter(([url]) => url !== null)
-    );
+    const dbMap = new Map();
+    if (Array.isArray(rows)) {
+      for (const row of rows) {
+        const normalized = normalizeHostname(row && row.url);
+        if (normalized !== null) {
+          dbMap.set(normalized, row && row.is_active !== false);
+        }
+      }
+    }
     const incomingUrls = new Set(
       (Array.isArray(urls) ? urls : [])
         .map(normalizeHostname)
