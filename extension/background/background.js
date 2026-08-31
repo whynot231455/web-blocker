@@ -247,14 +247,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
   if (message?.action === 'ping') {
     sendResponse({ installed: true });
+    return;
+  }
+
+  // The website's supabase-js storage adapter asks for the session the
+  // extension holds — the extension may have refreshed the token while the
+  // dashboard was closed, so its copy can be newer than the site's.
+  if (message?.action === 'getSupabaseSession') {
+    getSession().then(session => sendResponse({ session: session || null }));
+    return true;
+  }
+
+  // The website hands us its latest session (e.g. right after supabase-js
+  // refreshed the token) so our snapshot stays on the same refresh-token chain.
+  if (message?.action === 'setSupabaseSession') {
+    const incoming = message.session;
+    if (incoming && incoming.access_token) {
+      const normalized = {
+        ...incoming,
+        user_id: (incoming.user && incoming.user.id) || incoming.user_id
+      };
+      chrome.storage.local.set(
+        { [STORAGE_KEYS.supabaseSession]: normalized, isGuest: false },
+        () => sendResponse({ ok: true })
+      );
+      return true;
+    }
+    sendResponse({ ok: false });
+    return;
   }
 });
 
 /**
  * @typedef {Object} SupabaseSession
  * @property {string} access_token
+ * @property {string} [refresh_token]
  * @property {string} user_id
  * @property {number} [expires_at]
+ * @property {number} [expires_in]
+ * @property {{ id?: string } | undefined} [user]
  */
 
 /**
@@ -430,27 +461,96 @@ function isTokenExpired(accessToken) {
   }
 }
 
+/**
+ * @returns {Promise<boolean>} true when at least one dashboard tab is open. When
+ * one is, the website's supabase-js owns token refresh and the extension must
+ * not refresh in parallel — that would fork Supabase's rotating refresh-token
+ * chain and can revoke the whole session.
+ */
+async function hasOpenDashboardTab() {
+  try {
+    const result = await chrome.storage.local.get(STORAGE_KEYS.dashboardOrigin);
+    const origin = result[STORAGE_KEYS.dashboardOrigin] || DEFAULT_DASHBOARD_ORIGIN;
+    const tabs = await chrome.tabs.query({ url: `${origin}/*` });
+    return Array.isArray(tabs) && tabs.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Exchange the stored refresh token for a fresh access token, directly against
+ * Supabase's auth endpoint. This is what lets the extension keep syncing (and
+ * therefore blocking newly-added sites) when no dashboard tab is open to do the
+ * refresh for us. The new tokens are merged into the stored snapshot so the
+ * website adopts the same chain the next time it opens.
+ * @returns {Promise<SupabaseSession | null>} the updated snapshot, or null when
+ *   there is no refresh token or Supabase rejects it.
+ */
+async function refreshSupabaseSession() {
+  const session = await getSession();
+  if (!session || !session.refresh_token) return null;
+  try {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: session.refresh_token })
+    });
+    if (!response.ok) {
+      if (DEBUG_MODE) console.warn('Extension token refresh rejected:', response.status);
+      return null;
+    }
+    const data = await response.json();
+    if (!data || !data.access_token) return null;
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    /** @type {SupabaseSession} */
+    const next = {
+      ...session,
+      access_token: data.access_token,
+      refresh_token: data.refresh_token || session.refresh_token,
+      expires_in: data.expires_in,
+      expires_at: data.expires_at || (nowSeconds + (data.expires_in || 3600)),
+      user: data.user || session.user,
+      user_id: (data.user && data.user.id) || session.user_id
+    };
+    await chrome.storage.local.set({ [STORAGE_KEYS.supabaseSession]: next });
+    if (DEBUG_MODE) console.log('Extension refreshed the Supabase session directly');
+    return next;
+  } catch (error) {
+    console.warn('Extension token refresh failed:', error);
+    return null;
+  }
+}
+
 async function syncFromSupabase() {
   try {
-    const session = await getSession();
+    let session = await getSession();
     if (!session || !session.access_token || !session.user_id) {
       if (DEBUG_MODE) console.log('No active session, skipping sync');
       await saveSyncStatus('not_authenticated', { error: 'Not authenticated' });
       return { success: false, error: 'Not authenticated' };
     }
 
-    // An expired *access* token is normal — it lives ~1 hour, and the website
-    // (which owns the refresh token) silently mints a new one. The extension
-    // has no refresh token, so it must NOT treat this as a dead session.
-    // Clearing state here — and especially asking the dashboard to clear it —
-    // wipes Supabase's own auth storage on the site and logs the user out for
-    // good, dropping them to guest mode. Instead, keep the snapshot and ask any
-    // open dashboard tab to push a freshly-refreshed token.
+    // An expired *access* token is normal — they live ~1 hour.
     if (isTokenExpired(session.access_token)) {
-      if (DEBUG_MODE) console.log('Access token stale; requesting a fresh token from the dashboard');
-      await saveSyncStatus('error', { error: 'Access token stale — open the dashboard to refresh' });
-      await handleRequestDashboardSync();
-      return { success: false, error: 'Access token stale — awaiting refresh from dashboard' };
+      if (await hasOpenDashboardTab()) {
+        // A dashboard tab is open: let the website's supabase-js refresh and
+        // push the new token. Refreshing here too would fork the rotating
+        // refresh-token chain and can revoke the whole session.
+        if (DEBUG_MODE) console.log('Token stale; asking the open dashboard to refresh');
+        await saveSyncStatus('error', { error: 'Access token stale — refreshing from dashboard' });
+        await handleRequestDashboardSync();
+        return { success: false, error: 'Access token stale — awaiting refresh from dashboard' };
+      }
+      // No dashboard open — nothing else can refresh, so the extension does it
+      // itself and keeps tracking newly-added sites.
+      const refreshed = await refreshSupabaseSession();
+      if (!refreshed) {
+        await clearExtensionSessionState();
+        await saveSyncStatus('error', { error: 'Session expired — sign in from the dashboard' });
+        return { success: false, error: 'Session expired — re-authenticate from the dashboard' };
+      }
+      session = refreshed;
     }
 
     // Fetch blocked sites

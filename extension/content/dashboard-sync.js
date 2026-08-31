@@ -258,11 +258,11 @@ if (!syncConfig) {
                     if (session && session.access_token && session.user?.id) {
                         safeSend({
                             action: messageActions.syncSession,
-                            session: {
-                                access_token: session.access_token,
-                                user_id: session.user.id,
-                                expires_at: session.expires_at
-                            }
+                            // Send the FULL session (incl. refresh_token + user) so the
+                            // background can refresh the access token itself when no
+                            // dashboard tab is open. user_id is duplicated at the top
+                            // level for the existing readers of session.user_id.
+                            session: { ...session, user_id: session.user.id }
                         });
                     }
                 } else {
