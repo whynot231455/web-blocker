@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
-import { Github, Repeat } from 'lucide-react';
+import { Repeat } from 'lucide-react';
 import { Modal } from '../ui/Modal';
-
-type SwitchProvider = 'google' | 'github';
 
 interface SwitchAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
   /**
-   * Kick off the OAuth flow for the chosen provider. Should resolve with an
-   * error message when the redirect could not be started; on success the page
-   * navigates away, so the modal simply stays in its pending state.
+   * Kick off the Google OAuth flow. Should resolve with an error message when
+   * the redirect could not be started; on success the page navigates away, so
+   * the modal simply stays in its pending state. (GitHub sign-in isn't
+   * implemented yet, so Google is the only provider offered.)
    */
-  onSelectProvider: (provider: SwitchProvider) => Promise<{ error: string | null }>;
+  onSelectProvider: () => Promise<{ error: string | null }>;
 }
 
 /** Google "G" mark — lucide-react ships no brand icons, so inline it. */
@@ -39,16 +38,16 @@ export const SwitchAccountModal: React.FC<SwitchAccountModalProps> = ({
 }) => {
   // The parent mounts this component only while the modal is open, so this
   // state starts fresh on every open — no reset effect needed.
-  const [pending, setPending] = useState<SwitchProvider | null>(null);
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSelect = async (provider: SwitchProvider) => {
-    setPending(provider);
+  const handleSelect = async () => {
+    setPending(true);
     setError(null);
-    const { error: selectError } = await onSelectProvider(provider);
+    const { error: selectError } = await onSelectProvider();
     if (selectError) {
       setError(selectError);
-      setPending(null);
+      setPending(false);
     }
   };
 
@@ -66,8 +65,8 @@ export const SwitchAccountModal: React.FC<SwitchAccountModalProps> = ({
         </div>
 
         <p className="text-[10px] text-gray-600 leading-relaxed" style={pixelStyle}>
-          PICK A PROVIDER AND CHOOSE A DIFFERENT ACCOUNT. YOUR CURRENT SESSION IS
-          REPLACED ONCE YOU FINISH SIGNING IN.
+          CHOOSE A DIFFERENT GOOGLE ACCOUNT. YOUR CURRENT SESSION IS REPLACED
+          ONCE YOU FINISH SIGNING IN.
         </p>
 
         {error && (
@@ -82,28 +81,18 @@ export const SwitchAccountModal: React.FC<SwitchAccountModalProps> = ({
         <div className="w-full space-y-3 pt-1">
           <button
             type="button"
-            onClick={() => handleSelect('google')}
-            disabled={pending !== null}
+            onClick={handleSelect}
+            disabled={pending}
             className="w-full py-2.5 px-3 bg-white text-black font-black uppercase border-2 border-black hover:bg-gray-100 transition-colors shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1.5 disabled:opacity-50"
             style={{ ...pixelStyle, fontSize: '9px' }}
           >
             <GoogleIcon size={12} />
-            {pending === 'google' ? 'REDIRECTING...' : 'CONTINUE WITH GOOGLE'}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSelect('github')}
-            disabled={pending !== null}
-            className="w-full py-2.5 px-3 bg-black text-white font-black uppercase border-2 border-black hover:bg-gray-800 transition-colors shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1.5 disabled:opacity-50"
-            style={{ ...pixelStyle, fontSize: '9px' }}
-          >
-            <Github size={12} />
-            {pending === 'github' ? 'REDIRECTING...' : 'CONTINUE WITH GITHUB'}
+            {pending ? 'REDIRECTING...' : 'CONTINUE WITH GOOGLE'}
           </button>
           <button
             type="button"
             onClick={onClose}
-            disabled={pending !== null}
+            disabled={pending}
             className="w-full py-2.5 px-3 bg-white text-black font-black uppercase border-2 border-black hover:bg-gray-100 transition-colors shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-50"
             style={{ ...pixelStyle, fontSize: '9px' }}
           >

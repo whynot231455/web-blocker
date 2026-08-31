@@ -14,7 +14,7 @@ import { SignOutModal } from '@/components/auth/SignOutModal';
 import { SwitchAccountModal } from '@/components/auth/SwitchAccountModal';
 
 export default function AccountPage() {
-  const { user, isGuest, loading: authLoading, signOut, signInWithGoogle, signInWithGithub } = useAuth();
+  const { user, isGuest, loading: authLoading, signOut, signInWithGoogle } = useAuth();
   const router = useRouter();
   const { sites } = useBlockedSites();
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
@@ -73,12 +73,12 @@ export default function AccountPage() {
     }
   };
 
-  // Switch account: re-run the OAuth flow with prompt: 'select_account' so the
+  // Switch account: re-run Google OAuth with prompt: 'select_account' so the
   // provider shows its account chooser. The /auth/callback exchange then
-  // replaces the current session with the newly-picked one.
-  const handleSwitchProvider = async (provider: 'google' | 'github') => {
-    const signIn = provider === 'google' ? signInWithGoogle : signInWithGithub;
-    const { error: switchErr } = await signIn({ prompt: 'select_account' });
+  // replaces the current session with the newly-picked one. (GitHub sign-in
+  // is not implemented yet, so Google is the only provider offered.)
+  const handleSwitchProvider = async () => {
+    const { error: switchErr } = await signInWithGoogle({ prompt: 'select_account' });
     return { error: switchErr ? switchErr.message : null };
   };
 
