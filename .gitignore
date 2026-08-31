@@ -44,3 +44,5 @@ skills-lock.json
 website/node_modules
 
 extension-dev
+# OpenCode agent workspace
+.opencode/

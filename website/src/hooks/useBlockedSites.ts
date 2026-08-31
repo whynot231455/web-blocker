@@ -18,6 +18,10 @@ function buildSitesSignature(sites: BlockedSite[]): string {
 function persistGuestSites(sites: BlockedSite[]) {
     localStorage.setItem(SYNC_STORAGE_KEYS.guestSites, JSON.stringify(sites));
     localStorage.setItem(GUEST_SITES_SIGNATURE_KEY, buildSitesSignature(sites));
+    // Last-writer-wins marker for the extension bridge (dashboard-sync.js):
+    // lets it tell "dashboard just mutated" apart from "extension is newer",
+    // so a guest add is pushed to the extension instead of being reverted.
+    localStorage.setItem(SYNC_STORAGE_KEYS.sitesUpdatedAt, Date.now().toString());
 }
 
 /** Generate a stable ID for guest mode sites based on URL */

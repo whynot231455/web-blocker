@@ -10,6 +10,16 @@
 if (!globalThis.CTRL_BLCK_SCHEDULE_UTILS) {
 const MINUTES_PER_DAY = 24 * 60;
 
+/**
+ * A normalized block window: the site is blocked between `start` and `end`.
+ * @typedef {{ enabled: boolean; start: string; end: string }} AccessWindow
+ */
+
+/**
+ * Parse a `"HH:MM"` string into minutes past midnight.
+ * @param {unknown} value
+ * @returns {number | null} minutes in [0, 1439], or null if not a valid time
+ */
 function parseTimeToMinutes(value) {
     if (typeof value !== 'string') return null;
     const match = value.trim().match(/^(\d{1,2}):(\d{2})$/);
@@ -24,6 +34,11 @@ function parseTimeToMinutes(value) {
     return hours * 60 + minutes;
 }
 
+/**
+ * Normalize a time-like value to a zero-padded `"HH:MM"` string.
+ * @param {unknown} value
+ * @returns {string | null}
+ */
 function normalizeTimeString(value) {
     const minutes = parseTimeToMinutes(value);
     if (minutes === null) return null;
@@ -33,6 +48,11 @@ function normalizeTimeString(value) {
     return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 }
 
+/**
+ * Coerce an arbitrary value into a valid {@link AccessWindow}, or null.
+ * @param {unknown} window
+ * @returns {AccessWindow | null}
+ */
 function normalizeAccessWindow(window) {
     if (!window || typeof window !== 'object') return null;
 
@@ -49,6 +69,14 @@ function normalizeAccessWindow(window) {
     };
 }
 
+/**
+ * Evaluate a block window against the current time.
+ * @param {unknown} window a raw or normalized access-window value
+ * @param {Date} [now] the reference time (defaults to now)
+ * @returns {{ allowed: boolean; configured: boolean; nextTransitionAt: number | null }}
+ *   `allowed` is true when the site is currently accessible; `nextTransitionAt`
+ *   is the epoch-ms of the next allowed/blocked flip, or null when unconfigured.
+ */
 function getAccessWindowState(window, now = new Date()) {
     const normalized = normalizeAccessWindow(window);
     if (!normalized || normalized.enabled === false) {
@@ -108,6 +136,12 @@ function getAccessWindowState(window, now = new Date()) {
     };
 }
 
+/**
+ * Build a stable, order-independent fingerprint of a site list (url + active
+ * state + window) so callers can cheaply detect whether anything changed.
+ * @param {unknown} sites array of site-like objects
+ * @returns {string}
+ */
 function buildBlockedSitesSignature(sites) {
     return Array.from(new Set(
         (Array.isArray(sites) ? sites : [])
