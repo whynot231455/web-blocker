@@ -86,6 +86,7 @@ export default function PrivacySecurityPage() {
     localStorage.removeItem(SYNC_STORAGE_KEYS.guestSites);
     localStorage.removeItem(SYNC_STORAGE_KEYS.guestFlag);
     localStorage.removeItem(SYNC_STORAGE_KEYS.blockedSitesSignature);
+    localStorage.removeItem(SYNC_STORAGE_KEYS.sitesUpdatedAt);
     window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
     setStatus('Guest data cleared from this device.');
   };

@@ -10,9 +10,18 @@ function AuthCallback() {
     const [status, setStatus] = useState<'loading' | 'error'>('loading');
 
     useEffect(() => {
+        // Preserve the caller's return target through the OAuth round trip.
+        // Must be a same-origin path — the code URL is attacker-influenced.
+        const rawReturnTo = searchParams.get('returnTo');
+        const returnTo = rawReturnTo && rawReturnTo.startsWith('/') && !rawReturnTo.startsWith('//')
+            ? rawReturnTo
+            : '/dashboard';
+        const loginWithError = (message: string) =>
+            router.replace(`/login?error=${encodeURIComponent(message)}&returnTo=${encodeURIComponent(returnTo)}`);
+
         const error = searchParams.get('error');
         if (error) {
-            router.replace(`/login?error=${encodeURIComponent(error)}`);
+            loginWithError(error);
             return;
         }
 
@@ -23,9 +32,9 @@ function AuthCallback() {
         if (code) {
             void supabase.auth.exchangeCodeForSession(code).then(({ error: exchangeError }) => {
                 if (exchangeError) {
-                    router.replace(`/login?error=${encodeURIComponent(exchangeError.message)}`);
+                    loginWithError(exchangeError.message);
                 } else {
-                    router.replace('/dashboard');
+                    router.replace(returnTo);
                 }
             });
             return;
@@ -36,7 +45,7 @@ function AuthCallback() {
         const check = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                router.replace('/dashboard');
+                router.replace(returnTo);
                 return;
             }
             if (++attempts < 10) {

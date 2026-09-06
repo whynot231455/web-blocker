@@ -28,6 +28,7 @@ function isInternalPage(url) {
 function getInternalPageType(url) {
     if (!url) return 'unknown page';
 
+    if (url.startsWith('chrome-search://') || url.includes('newtab') || url.startsWith('chrome://newtab')) return 'New Tab page';
     if (url.startsWith('chrome://')) return 'Chrome internal page';
     if (url.startsWith('chrome-extension://')) return 'browser extension page';
     if (url.startsWith('moz-extension://')) return 'Firefox extension page';
@@ -208,6 +209,31 @@ async function buildDashboardUrl(path) {
     return new URL(path, origin).toString();
 }
 
+/** @param {string} url */
+async function openDashboardUrl(url) {
+    // Reuse an existing dashboard tab instead of opening a duplicate. A
+    // duplicate dashboard tab boots a second dashboard-sync content script,
+    // and the two tabs racing `syncExtensionToDashboard` on load was one way
+    // guest lists appeared to reset after clicking "Edit URL List".
+    try {
+        const target = new URL(url);
+        const tabs = await chrome.tabs.query({ url: `${target.origin}/*` });
+        const existing = tabs.find((tab) => typeof tab.url === 'string' && tab.url.startsWith(target.origin + '/'));
+        if (existing && typeof existing.id === 'number') {
+            await chrome.tabs.update(existing.id, { active: true, url });
+            if (typeof existing.windowId === 'number') {
+                await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {});
+            }
+            window.close();
+            return;
+        }
+    } catch {
+        // Fall through to creating a fresh tab.
+    }
+    await chrome.tabs.create({ url });
+    window.close();
+}
+
 async function configureDashboardLink() {
     if (!dashboardLink) {
         return;
@@ -217,8 +243,7 @@ async function configureDashboardLink() {
     dashboardLink.href = destinationUrl;
     dashboardLink.addEventListener('click', async function (event) {
         event.preventDefault();
-        await chrome.tabs.create({ url: destinationUrl });
-        window.close();
+        await openDashboardUrl(destinationUrl);
     });
 }
 
@@ -298,8 +323,7 @@ function showInternalPageMessage(url) {
         editButton.className = 'edit-url-button';
         editButton.textContent = 'Edit URL List';
         editButton.addEventListener('click', function () {
-            void buildDashboardUrl('/dashboard').then((url) => chrome.tabs.create({ url }));
-            window.close();
+            void buildDashboardUrl('/dashboard').then((url) => openDashboardUrl(url));
         });
         messageDiv.appendChild(editButton);
 
