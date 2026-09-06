@@ -19,7 +19,8 @@ globalThis.CTRL_BLCK_SYNC = {
         guestFlag: 'ctrl_blck_guest',
         guestSites: 'ctrl_blck_sites',
         guestSiteRecords: 'ctrl_blck_guest_site_records',
-        sitesUpdatedAt: 'ctrl_blck_sites_updated_at'
+        sitesUpdatedAt: 'ctrl_blck_sites_updated_at',
+        sitesEmptiedAt: 'ctrl_blck_sites_emptied_at'
     },
     messageActions: {
         syncSession: 'syncSession',

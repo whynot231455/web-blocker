@@ -20,6 +20,7 @@ const STORAGE_KEYS = {
   guestFlag: syncConfig.storageKeys.guestFlag,
   guestSiteRecords: syncConfig.storageKeys.guestSiteRecords,
   sitesUpdatedAt: syncConfig.storageKeys.sitesUpdatedAt,
+  sitesEmptiedAt: syncConfig.storageKeys.sitesEmptiedAt,
   lastSyncStatus: 'lastSyncStatus'
 };
 
@@ -41,6 +42,7 @@ function buildBlockedSitesSignature(urls, schedules = {}) {
 
 async function replaceGuestSites(sites) {
   const projection = guestSiteStore.project(sites);
+  const now = Date.now();
   await chrome.storage.local.set({
     [STORAGE_KEYS.guestSiteRecords]: projection.sites,
     [STORAGE_KEYS.blockedSites]: projection.urls,
@@ -48,12 +50,20 @@ async function replaceGuestSites(sites) {
     [STORAGE_KEYS.blockedSitesSignature]: projection.signature,
     // Last-writer-wins marker: popup mutations must be able to win the
     // bidirectional sync against a dashboard tab holding an older list.
-    [STORAGE_KEYS.sitesUpdatedAt]: Date.now(),
+    [STORAGE_KEYS.sitesUpdatedAt]: now,
     isGuest: true,
     [STORAGE_KEYS.lastSyncStatus]: createSyncStatus('guest_local', {
       blockedSiteCount: projection.urls.length
     })
   });
+  if (projection.sites.length === 0) {
+    // Explicit user intent (popup CLEAR ALL / delete-last-site): an empty
+    // list carries intent and may overwrite a non-empty dashboard. Spurious
+    // empties (session clears) never set this, so they can never wipe.
+    await chrome.storage.local.set({ [STORAGE_KEYS.sitesEmptiedAt]: now });
+  } else {
+    await chrome.storage.local.remove(STORAGE_KEYS.sitesEmptiedAt);
+  }
   return { success: true, sites: projection.sites };
 }
 
@@ -156,6 +166,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (Object.keys(storageData).length > 0) {
+        // LWW marker: dashboard pushes must be able to win against a stale
+        // empty extension state on the next reload, and vice versa.
+        storageData[STORAGE_KEYS.sitesUpdatedAt] = Date.now();
         storageData[STORAGE_KEYS.lastSyncStatus] = createSyncStatus(
           message.isGuest ? 'guest_local' : 'synced',
           {
@@ -432,6 +445,11 @@ async function clearExtensionSessionState(options = {}) {
     nextState[STORAGE_KEYS.blockedSiteSchedules] = {};
     nextState[STORAGE_KEYS.blockedSitesSignature] = '';
     nextState[STORAGE_KEYS.guestSiteRecords] = [];
+    // Placeholder seed, NOT user intent: strip the LWW timestamp and any
+    // empty-intent marker so this empty state can never win against a
+    // non-empty dashboard (updatedAt reads back as 0 and intent as 0).
+    // A genuine sign-out is driven by the website itself, which clears its
+    // own localStorage keys; the extension must not outrank them.
   }
 
   nextState[STORAGE_KEYS.lastSyncStatus] = createSyncStatus(
@@ -441,6 +459,9 @@ async function clearExtensionSessionState(options = {}) {
 
   if (Object.keys(nextState).length > 0) {
     await chrome.storage.local.set(nextState);
+  }
+  if (clearBlockedSites) {
+    await chrome.storage.local.remove([STORAGE_KEYS.sitesUpdatedAt, STORAGE_KEYS.sitesEmptiedAt]);
   }
 }
 

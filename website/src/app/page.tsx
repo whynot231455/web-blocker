@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Shield, Zap, Target, ArrowRight, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { LandingHeaderCta } from '@/components/layout/LandingHeaderCta';
 
 
 export default function LandingPage() {
@@ -23,9 +24,7 @@ export default function LandingPage() {
           <a href="#how-it-works" className="hover:underline">How it Works</a>
         </div>
         <div className="flex items-center justify-end gap-4 flex-1">
-          <Link href="/login">
-            <button className="text-[10px] font-bold uppercase tracking-widest px-4 py-2 hover:bg-gray-100 transition-colors">Get Started</button>
-          </Link>
+          <LandingHeaderCta />
         </div>
       </nav>
 

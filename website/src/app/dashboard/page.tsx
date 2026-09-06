@@ -16,10 +16,12 @@ export default function DashboardPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const router = useRouter();
 
-  // Redirect to login if not authenticated and not a guest
+  // Redirect to login if not authenticated and not a guest.
+  // Preserve the return target so login can send guests back to the
+  // dashboard instead of stranding them on the landing page.
   useEffect(() => {
     if (!authLoading && !user && !isGuest) {
-      router.push('/login');
+      router.push('/login?returnTo=/dashboard');
     }
   }, [user, isGuest, authLoading, router]);
 

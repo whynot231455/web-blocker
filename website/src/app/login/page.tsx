@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { hasGuestSitesForRedirect } from '@/lib/guestRedirect';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -13,22 +14,35 @@ export default function LoginPage() {
     if (typeof window === 'undefined') return null;
     return new URLSearchParams(window.location.search).get('error');
   });
-  const { user, loading, continueAsGuest, signInWithGoogle } = useAuth();
+  const { user, isGuest, loading, continueAsGuest, signInWithGoogle } = useAuth();
   const router = useRouter();
+
+  // Same-origin return target (e.g. /dashboard from the dashboard guard).
+  // Never trust raw query input: must be a path, never // or a scheme.
+  const returnTo = React.useMemo(() => {
+    if (typeof window === 'undefined') return '/dashboard';
+    const raw = new URLSearchParams(window.location.search).get('returnTo');
+    return raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/dashboard';
+  }, []);
 
   // A returning visitor whose Google session is still valid should never see
   // the login form — send them straight to the dashboard. useAuth restores the
   // persisted Supabase session before `loading` clears, so this also covers
-  // "the browser remembers I logged in before".
+  // "the browser remembers I logged in before". Returning guests with saved
+  // sites skip the form too (see hasGuestSitesForRedirect).
   React.useEffect(() => {
     if (!loading && user) {
-      router.replace('/dashboard');
+      router.replace(returnTo);
+      return;
     }
-  }, [loading, user, router]);
+    if (!loading && !user && isGuest && hasGuestSitesForRedirect()) {
+      router.replace(returnTo);
+    }
+  }, [loading, user, isGuest, router, returnTo]);
 
   const handleGuestContinue = () => {
     continueAsGuest();
-    router.push('/dashboard');
+    router.replace(returnTo);
   };
 
   const handleGoogleSignIn = async () => {

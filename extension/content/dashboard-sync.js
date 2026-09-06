@@ -147,10 +147,14 @@ if (!syncConfig) {
                     ? scheduleUtils.buildBlockedSitesSignature(normalizedSites)
                     : ''
             );
+            // Keep the LWW marker in step with extension-driven writes. Without
+            // this, dashboardUpdatedAt stays 0 and a later `0 >= 0` tie lets an
+            // empty extension state wipe a non-empty dashboard on reload.
+            localStorage.setItem(storageKeys.sitesUpdatedAt, Date.now().toString());
         }
 
         /**
-         * @returns {Promise<{ sites: LocalSite[]; signature: string; hasCanonicalRecords: boolean; updatedAt: number }>}
+         * @returns {Promise<{ sites: LocalSite[]; signature: string; hasCanonicalRecords: boolean; updatedAt: number; emptiedAt: number }>}
          */
         async function readExtensionBlockedSites() {
             const result = await chrome.storage.local.get([
@@ -158,12 +162,16 @@ if (!syncConfig) {
                 BLOCKED_SITE_SCHEDULES_KEY,
                 BLOCKED_SITES_SIGNATURE_KEY,
                 storageKeys.guestSiteRecords,
-                storageKeys.sitesUpdatedAt
+                storageKeys.sitesUpdatedAt,
+                storageKeys.sitesEmptiedAt
             ]);
             const updatedAt = Number(result[storageKeys.sitesUpdatedAt]) || 0;
+            // Explicit empty intent (popup CLEAR ALL / delete-last-site). Only
+            // `replaceGuestSites([])` sets this; session clears strip it.
+            const emptiedAt = Number(result[storageKeys.sitesEmptiedAt]) || 0;
             if (Array.isArray(result[storageKeys.guestSiteRecords])) {
                 const projection = guestSiteStore.project(result[storageKeys.guestSiteRecords]);
-                return { sites: projection.sites, signature: projection.signature, hasCanonicalRecords: true, updatedAt };
+                return { sites: projection.sites, signature: projection.signature, hasCanonicalRecords: true, updatedAt, emptiedAt };
             }
             const urls = Array.isArray(result[storageKeys.blockedSites])
                 ? result[storageKeys.blockedSites]
@@ -189,7 +197,8 @@ if (!syncConfig) {
                 sites,
                 signature: readBlockedSitesSignature(result[BLOCKED_SITES_SIGNATURE_KEY]) || (scheduleUtils?.buildBlockedSitesSignature ? scheduleUtils.buildBlockedSitesSignature(sites) : ''),
                 hasCanonicalRecords: false,
-                updatedAt
+                updatedAt,
+                emptiedAt
             };
         }
 
@@ -317,15 +326,16 @@ if (!syncConfig) {
                 // the extension state is at least as recent as the dashboard's last
                 // mutation. A freshly added dashboard site must be PUSHED, not clobbered.
                 const dashboardUpdatedAt = Number(localStorage.getItem(storageKeys.sitesUpdatedAt)) || 0;
-                // Canonical records seeded empty by clearExtensionSessionState (no
-                // timestamp) are placeholders, not a real popup mutation — never let
-                // them erase a non-empty dashboard list.
-                const seededEmptyRecords = extensionState.sites.length === 0
-                    && extensionState.updatedAt === 0
-                    && sites.length > 0;
+                // An empty extension state without explicit empty intent (popup
+                // CLEAR ALL / delete-last-site via replaceGuestSites) is a
+                // placeholder or a spurious session clear — never let it erase
+                // a non-empty dashboard list, regardless of timestamps.
+                const emptyWithoutIntent = extensionState.sites.length === 0
+                    && sites.length > 0
+                    && !(extensionState.emptiedAt > 0 && extensionState.emptiedAt >= dashboardUpdatedAt);
                 const extensionIsAuthoritative = extensionState.hasCanonicalRecords
-                    && !seededEmptyRecords
-                    && extensionState.updatedAt >= dashboardUpdatedAt;
+                    && !emptyWithoutIntent
+                    && extensionState.updatedAt > dashboardUpdatedAt;
                 if (!sessionData && extensionIsAuthoritative && localSignature !== extensionState.signature) {
                     // A popup mutation reached chrome.storage more recently than this
                     // tab's last dashboard mutation. The extension state wins; never
@@ -437,7 +447,14 @@ if (!syncConfig) {
                     // Replacing, rather than merging, prevents a stale dashboard cache
                     // from resurrecting a site removed from the popup.
                     const dashboardUpdatedAt = Number(localStorage.getItem(storageKeys.sitesUpdatedAt)) || 0;
-                    if (extensionState.signature !== dashboardState.signature && extensionState.updatedAt >= dashboardUpdatedAt) {
+                    // Same empty-without-intent rule as the push path: only an
+                    // explicit popup clear (emptiedAt >= dashboardUpdatedAt) may
+                    // overwrite a non-empty dashboard with an empty list.
+                    // Strict `>` (not `>=`) so a 0==0 tie can never wipe.
+                    const emptyPullWithoutIntent = extensionState.sites.length === 0
+                        && dashboardState.sites.length > 0
+                        && !(extensionState.emptiedAt > 0 && extensionState.emptiedAt >= dashboardUpdatedAt);
+                    if (!emptyPullWithoutIntent && extensionState.signature !== dashboardState.signature && extensionState.updatedAt > dashboardUpdatedAt) {
                         writeLocalGuestSites(extensionState.sites);
                         window.dispatchEvent(new CustomEvent('ctrl-blck-ui-refresh'));
                     }
@@ -628,6 +645,11 @@ if (!syncConfig) {
                     localStorage.removeItem(storageKeys.guestSites);
                     localStorage.removeItem(BLOCKED_SITE_SCHEDULES_KEY);
                     localStorage.removeItem(GUEST_FOCUS_SESSIONS_KEY);
+                    // Drop the LWW markers too: a cleared dashboard must not
+                    // keep a stale timestamp/signature that mints a
+                    // false-newer empty on the next sync cycle.
+                    localStorage.removeItem(BLOCKED_SITES_SIGNATURE_KEY);
+                    localStorage.removeItem(storageKeys.sitesUpdatedAt);
                 }
                 window.dispatchEvent(new CustomEvent('ctrl-blck-sync'));
             }

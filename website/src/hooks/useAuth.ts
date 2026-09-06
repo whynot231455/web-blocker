@@ -97,9 +97,14 @@ export const useAuth = () => {
 
         // Fallback: if onAuthStateChange somehow never fires (e.g., no network),
         // resolve loading after a short timeout to avoid infinite spinner.
+        // Re-read the guest flag so a returning guest is not bounced to
+        // /login by the dashboard guard while auth is unreachable.
         const fallbackTimer = setTimeout(() => {
             if (!mounted || initialEventFired.current) return;
             initialEventFired.current = true;
+            if (typeof window !== 'undefined' && localStorage.getItem(GUEST_FLAG_KEY) === 'true') {
+                setIsGuest(true);
+            }
             setLoading(false);
         }, 3000);
 

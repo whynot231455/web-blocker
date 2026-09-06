@@ -22,6 +22,14 @@ function persistGuestSites(sites: BlockedSite[]) {
     // lets it tell "dashboard just mutated" apart from "extension is newer",
     // so a guest add is pushed to the extension instead of being reverted.
     localStorage.setItem(SYNC_STORAGE_KEYS.sitesUpdatedAt, Date.now().toString());
+    // Every guest write implies guest mode: a user who reaches the dashboard
+    // via the extension-gate ack (without ever clicking Continue as guest)
+    // must not lose the flag that keeps them out of the /login redirect.
+    // Authenticated sessions own the flag (useAuth clears it on login), so
+    // skip the marker when a Supabase session is present.
+    if (!localStorage.getItem(SYNC_STORAGE_KEYS.supabaseAuthToken)) {
+        localStorage.setItem(SYNC_STORAGE_KEYS.guestFlag, 'true');
+    }
 }
 
 /** Generate a stable ID for guest mode sites based on URL */
@@ -105,6 +113,13 @@ export const useBlockedSites = () => {
                 setSites(uniqueMapped);
                 if (typeof window !== 'undefined') {
                     localStorage.setItem(GUEST_SITES_SIGNATURE_KEY, buildSitesSignature(uniqueMapped));
+                    // Seed the LWW marker if a non-empty list has none (e.g. data
+                    // written by an older build or by the extension bridge). Without
+                    // this, dashboardUpdatedAt stays 0 and ties with a seeded-empty
+                    // extension state. Never overwrite an existing marker here.
+                    if (uniqueMapped.length > 0 && !localStorage.getItem(SYNC_STORAGE_KEYS.sitesUpdatedAt)) {
+                        localStorage.setItem(SYNC_STORAGE_KEYS.sitesUpdatedAt, Date.now().toString());
+                    }
                 }
             }
         } catch (err: unknown) {
