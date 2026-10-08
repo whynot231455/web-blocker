@@ -11,15 +11,16 @@ import { useRouter } from 'next/navigation';
 import { useBlockedSites } from '@/hooks/useBlockedSites';
 import { getAccessWindowState } from '@/lib/schedule';
 import { SignOutModal } from '@/components/auth/SignOutModal';
-import { SwitchAccountModal } from '@/components/auth/SwitchAccountModal';
+import { SwitchAccountModal, type OAuthProviderId } from '@/components/auth/SwitchAccountModal';
+import { GitHubIcon, GoogleIcon } from '@/components/auth/ProviderIcons';
 
 export default function AccountPage() {
-  const { user, isGuest, loading: authLoading, signOut, signInWithGoogle } = useAuth();
+  const { user, isGuest, loading: authLoading, signOut, signInWithGoogle, signInWithGithub } = useAuth();
   const router = useRouter();
   const { sites } = useBlockedSites();
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [googleError, setGoogleError] = useState<string | null>(null);
+  const [oauthLoading, setOauthLoading] = useState<OAuthProviderId | null>(null);
+  const [oauthError, setOauthError] = useState<string | null>(null);
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
 
   const summary = useMemo(() => {
@@ -63,22 +64,24 @@ export default function AccountPage() {
     router.push('/login');
   };
 
-  const handleGoogleSignIn = async () => {
-    setIsGoogleLoading(true);
-    setGoogleError(null);
-    const { error: signInError } = await signInWithGoogle();
+  const startOAuth = (provider: OAuthProviderId, options?: { prompt?: 'select_account' }) =>
+    provider === 'github' ? signInWithGithub(options) : signInWithGoogle(options);
+
+  const handleOAuthSignIn = async (provider: OAuthProviderId) => {
+    setOauthLoading(provider);
+    setOauthError(null);
+    const { error: signInError } = await startOAuth(provider);
     if (signInError) {
-      setGoogleError(signInError.message);
-      setIsGoogleLoading(false);
+      setOauthError(signInError.message);
+      setOauthLoading(null);
     }
   };
 
-  // Switch account: re-run Google OAuth with prompt: 'select_account' so the
-  // provider shows its account chooser. The /auth/callback exchange then
-  // replaces the current session with the newly-picked one. (GitHub sign-in
-  // is not implemented yet, so Google is the only provider offered.)
-  const handleSwitchProvider = async () => {
-    const { error: switchErr } = await signInWithGoogle({ prompt: 'select_account' });
+  // Switch account: re-run OAuth with prompt: 'select_account' so the provider
+  // (Google or GitHub) shows its account chooser. The /auth/callback exchange
+  // then replaces the current session with the newly-picked one.
+  const handleSwitchProvider = async (provider: OAuthProviderId) => {
+    const { error: switchErr } = await startOAuth(provider, { prompt: 'select_account' });
     return { error: switchErr ? switchErr.message : null };
   };
 
@@ -181,21 +184,31 @@ export default function AccountPage() {
                     Sync Your Account
                   </h3>
                   <p className="text-xs text-gray-500 mb-5 leading-relaxed">
-                    Sign in with Google to sync your blocked sites and focus
+                    Sign in with Google or GitHub to sync your blocked sites and focus
                     sessions across devices.
                   </p>
-                  {googleError && (
+                  {oauthError && (
                     <div className="mb-4 p-3 bg-red-50 border border-red-400 text-red-700 text-[10px]">
-                      {googleError}
+                      {oauthError}
                     </div>
                   )}
                   <button
-                    onClick={handleGoogleSignIn}
-                    disabled={isGoogleLoading}
+                    onClick={() => handleOAuthSignIn('google')}
+                    disabled={oauthLoading !== null}
                     className="w-full py-4 bg-white text-black border-2 border-black hover:bg-gray-100 transition-colors disabled:opacity-50 flex items-center justify-center gap-3"
                     style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.1em', boxShadow: '4px 4px 0px #000' }}
                   >
-                    CONTINUE WITH GOOGLE
+                    <GoogleIcon size={14} />
+                    {oauthLoading === 'google' ? 'REDIRECTING...' : 'CONTINUE WITH GOOGLE'}
+                  </button>
+                  <button
+                    onClick={() => handleOAuthSignIn('github')}
+                    disabled={oauthLoading !== null}
+                    className="w-full py-4 mt-4 bg-white text-black border-2 border-black hover:bg-gray-100 transition-colors disabled:opacity-50 flex items-center justify-center gap-3"
+                    style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.1em', boxShadow: '4px 4px 0px #000' }}
+                  >
+                    <GitHubIcon size={14} />
+                    {oauthLoading === 'github' ? 'REDIRECTING...' : 'CONTINUE WITH GITHUB'}
                   </button>
                   <div className="border-t border-gray-200 pt-4 mt-5">
                     <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">

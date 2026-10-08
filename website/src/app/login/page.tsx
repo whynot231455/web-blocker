@@ -7,14 +7,16 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { hasGuestSitesForRedirect } from '@/lib/guestRedirect';
+import { GitHubIcon, GoogleIcon } from '@/components/auth/ProviderIcons';
 
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [pendingProvider, setPendingProvider] = React.useState<'google' | 'github' | null>(null);
+  const isLoading = pendingProvider !== null;
   const [error, setError] = React.useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return new URLSearchParams(window.location.search).get('error');
   });
-  const { user, isGuest, loading, continueAsGuest, signInWithGoogle } = useAuth();
+  const { user, isGuest, loading, continueAsGuest, signInWithGoogle, signInWithGithub } = useAuth();
   const router = useRouter();
 
   // Same-origin return target (e.g. /dashboard from the dashboard guard).
@@ -25,7 +27,7 @@ export default function LoginPage() {
     return raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/dashboard';
   }, []);
 
-  // A returning visitor whose Google session is still valid should never see
+  // A returning visitor whose Google/GitHub session is still valid should never see
   // the login form — send them straight to the dashboard. useAuth restores the
   // persisted Supabase session before `loading` clears, so this also covers
   // "the browser remembers I logged in before". Returning guests with saved
@@ -45,13 +47,15 @@ export default function LoginPage() {
     router.replace(returnTo);
   };
 
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
+  const handleOAuthSignIn = async (provider: 'google' | 'github') => {
+    setPendingProvider(provider);
     setError(null);
-    const { error: signInError } = await signInWithGoogle();
+    const { error: signInError } = provider === 'github'
+      ? await signInWithGithub()
+      : await signInWithGoogle();
     if (signInError) {
       setError(signInError.message);
-      setIsLoading(false);
+      setPendingProvider(null);
     }
   };
 
@@ -104,12 +108,23 @@ export default function LoginPage() {
 
         <div className="space-y-4">
           <button
-            onClick={handleGoogleSignIn}
+            onClick={() => handleOAuthSignIn('google')}
             disabled={isLoading}
             className="w-full py-4 bg-white text-black border-2 border-black hover:bg-gray-100 transition-colors disabled:opacity-50 flex items-center justify-center gap-3"
             style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.1em', boxShadow: '4px 4px 0px #000' }}
           >
-            CONTINUE WITH GOOGLE
+            <GoogleIcon size={14} />
+            {pendingProvider === 'google' ? 'REDIRECTING...' : 'CONTINUE WITH GOOGLE'}
+          </button>
+
+          <button
+            onClick={() => handleOAuthSignIn('github')}
+            disabled={isLoading}
+            className="w-full py-4 bg-white text-black border-2 border-black hover:bg-gray-100 transition-colors disabled:opacity-50 flex items-center justify-center gap-3"
+            style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.1em', boxShadow: '4px 4px 0px #000' }}
+          >
+            <GitHubIcon size={14} />
+            {pendingProvider === 'github' ? 'REDIRECTING...' : 'CONTINUE WITH GITHUB'}
           </button>
 
           <div className="flex items-center gap-3">
