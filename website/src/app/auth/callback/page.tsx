@@ -21,7 +21,8 @@ function AuthCallback() {
 
         const error = searchParams.get('error');
         if (error) {
-            loginWithError(error);
+            // Supabase puts the human-readable cause in error_description.
+            loginWithError(searchParams.get('error_description') || error);
             return;
         }
 
