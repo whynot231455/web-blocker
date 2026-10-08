@@ -4,6 +4,8 @@ export type AccessWindow = {
   enabled: boolean;
   start: string;
   end: string;
+  /** Weekdays the window applies to (0 = Sunday .. 6 = Saturday). Omitted means every day. */
+  days?: number[];
 };
 
 export type AccessWindowState = {
@@ -13,6 +15,7 @@ export type AccessWindowState = {
 };
 
 export const parseTimeToMinutes = SCHEDULE_UTILS.parseTimeToMinutes as (value: string) => number | null;
+export const normalizeDays = SCHEDULE_UTILS.normalizeDays as (value: unknown) => number[] | null;
 export const normalizeTimeString = SCHEDULE_UTILS.normalizeTimeString as (value: string) => string | null;
 export const normalizeAccessWindow = SCHEDULE_UTILS.normalizeAccessWindow as (window: unknown) => AccessWindow | null;
 export const getAccessWindowState = SCHEDULE_UTILS.getAccessWindowState as (window: AccessWindow | null | undefined, now?: Date) => AccessWindowState;

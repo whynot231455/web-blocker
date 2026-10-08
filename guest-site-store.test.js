@@ -41,3 +41,25 @@ test('popup deletion projection cannot retain a removed site', () => {
     assert.deepStrictEqual(after.urls, ['news.ycombinator.com']);
     assert.strictEqual(after.signature.includes('youtube.com'), false);
 });
+
+test('weekday selection survives normalize, projection, legacy migration and popup deletion', () => {
+    const window = { enabled: true, start: '09:00', end: '17:00', days: [1, 3, 5] };
+    const records = store.normalizeSites([
+        { url: 'instagram.com', access_window: window },
+        { url: 'youtube.com' }
+    ]);
+
+    assert.deepStrictEqual(records[0].access_window.days, [1, 3, 5]);
+
+    const projection = store.project(records);
+    assert.deepStrictEqual(projection.schedules['instagram.com'].days, [1, 3, 5]);
+    assert.ok(projection.signature.includes('instagram.com:1:1:09:00:17:00:135'));
+
+    // chrome.storage legacy shape -> canonical records keeps the days.
+    const migrated = store.fromLegacyUrls(['instagram.com'], projection.schedules);
+    assert.deepStrictEqual(migrated[0].access_window.days, [1, 3, 5]);
+
+    // Removing another site from the popup leaves the days untouched.
+    const afterDelete = store.project(records.filter((site) => site.url !== 'youtube.com'));
+    assert.deepStrictEqual(afterDelete.schedules['instagram.com'].days, [1, 3, 5]);
+});

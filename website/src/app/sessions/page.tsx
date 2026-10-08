@@ -6,7 +6,9 @@ import { getAccessWindowState, normalizeAccessWindow, normalizeTimeString } from
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { ExtensionGate } from '@/components/layout/ExtensionGate';
+import { ALL_DAYS, DayPicker } from '@/components/ui/DayPicker';
 import { StatsCard } from '@/components/dashboard/StatsCard';
+import type { BlockedSite } from '@/types/blockedSite';
 import { useAuth } from '@/hooks/useAuth';
 import { useBlockedSites } from '@/hooks/useBlockedSites';
 import { useRouter } from 'next/navigation';
@@ -27,12 +29,18 @@ type SiteDraft = {
   enabled: boolean;
   start: string;
   end: string;
+  days: number[];
 };
+
+const DAY_ABBREVIATIONS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const NEW_WINDOW_DRAFT_KEY = 'ctrl_blck_new_window_draft';
 
 const DEFAULT_WINDOW: SiteDraft = {
   enabled: true,
   start: '01:00',
   end: '05:00',
+  days: ALL_DAYS,
 };
 
 export default function SessionsPage() {
@@ -52,6 +60,38 @@ export default function SessionsPage() {
       router.push('/login');
     }
   }, [user, isGuest, authLoading, router]);
+
+  // Remember the add-form window (times + days) while moving between pages.
+  const [newWindowRestored, setNewWindowRestored] = useState(false);
+  useEffect(() => {
+    try {
+      const stored = window.sessionStorage.getItem(NEW_WINDOW_DRAFT_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Partial<SiteDraft>;
+        const restored = normalizeAccessWindow({ enabled: true, start: parsed.start, end: parsed.end, days: parsed.days });
+        if (restored) {
+          setNewWindow({
+            enabled: true,
+            start: restored.start,
+            end: restored.end,
+            days: restored.days?.length ? restored.days : ALL_DAYS,
+          });
+        }
+      }
+    } catch {
+      // Storage unavailable or corrupt: fall back to the defaults.
+    }
+    setNewWindowRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!newWindowRestored) return;
+    try {
+      window.sessionStorage.setItem(NEW_WINDOW_DRAFT_KEY, JSON.stringify(newWindow));
+    } catch {
+      // Best-effort only.
+    }
+  }, [newWindow, newWindowRestored]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNowTick(Date.now()), 30_000);
@@ -130,6 +170,24 @@ export default function SessionsPage() {
           [siteId]: windowToDraft(saved.access_window),
         }));
         setStatusMessage(`Saved block window for ${saved.url}.`);
+      }
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  // Days save immediately (like the on/off toggle) so the selection survives
+  // leaving the page. Only the days change; any unsaved time edits stay as drafts.
+  const handleDaysChange = async (site: BlockedSite, days: number[]) => {
+    if (!site.access_window) return;
+    const previous = drafts[site.id] || windowToDraft(site.access_window);
+
+    setDrafts((current) => ({ ...current, [site.id]: { ...previous, days } }));
+    setSavingId(site.id);
+    try {
+      const saved = await updateSiteSchedule(site.id, { ...site.access_window, days });
+      if (!saved) {
+        setDrafts((current) => ({ ...current, [site.id]: previous }));
       }
     } finally {
       setSavingId(null);
@@ -241,6 +299,11 @@ export default function SessionsPage() {
                     </label>
                   </div>
 
+                  <DayPicker
+                    value={newWindow.days}
+                    onChange={(days) => setNewWindow((current) => ({ ...current, days }))}
+                  />
+
                   <button
                     onClick={handleAddSite}
                     disabled={!newUrl.trim()}
@@ -277,7 +340,7 @@ export default function SessionsPage() {
 
                 <div className="mt-6 border-t-2 border-dashed border-gray-200 pt-5">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 leading-relaxed">
-                    Example: 01:00 to 05:00 means the site is blocked only during that daily window. Overnight windows are supported.
+                    Example: 01:00 to 05:00 on the selected days means the site is blocked only during that window on those days. Overnight windows are supported and belong to the day they start on.
                   </p>
                 </div>
               </section>
@@ -358,6 +421,7 @@ export default function SessionsPage() {
                             </div>
 
                             <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+                              <div className="grid gap-4">
                               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <label className="grid gap-2">
                                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Block from</span>
@@ -391,6 +455,13 @@ export default function SessionsPage() {
                                   />
                                 </label>
 
+                              </div>
+
+                              <DayPicker
+                                value={draft.days}
+                                onChange={(days) => handleDaysChange(site, days)}
+                                disabled={savingId === site.id}
+                              />
                               </div>
 
                               <button
@@ -446,6 +517,7 @@ function draftToWindow(draft: SiteDraft | null | undefined): AccessWindow | null
     enabled: draft.enabled,
     start: draft.start,
     end: draft.end,
+    days: draft.days,
   });
   return normalized;
 }
@@ -455,13 +527,18 @@ function windowToDraft(window: AccessWindow | null | undefined): SiteDraft {
     enabled: window?.enabled !== false,
     start: window?.start || DEFAULT_WINDOW.start,
     end: window?.end || DEFAULT_WINDOW.end,
+    days: window?.days?.length ? window.days : ALL_DAYS,
   };
+}
+
+function formatDays(window: AccessWindow) {
+  return window.days?.length ? ` · ${window.days.map((day) => DAY_ABBREVIATIONS[day]).join(', ')}` : '';
 }
 
 function formatWindowLabel(window: AccessWindow | null | undefined) {
   if (!window) return 'No block window saved';
   if (window.enabled === false) return `${window.start} to ${window.end} — block window disabled`;
-  return `Blocked ${window.start} to ${window.end}`;
+  return `Blocked ${window.start} to ${window.end}${formatDays(window)}`;
 }
 
 function getSiteStatusLabel(isActive: boolean, window: AccessWindow | null, state: { allowed: boolean }) {

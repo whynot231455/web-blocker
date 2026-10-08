@@ -5,7 +5,7 @@
  * @property {string} [user_id]
  * @property {boolean} [is_active]
  * @property {string} [created_at]
- * @property {{ enabled: boolean; start: string; end: string } | null} [access_window]
+ * @property {{ enabled: boolean; start: string; end: string; days?: number[] } | null} [access_window]
  */
 /**
  * @typedef {Object} ActiveSession

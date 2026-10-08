@@ -9,10 +9,13 @@
 
 if (!globalThis.CTRL_BLCK_SCHEDULE_UTILS) {
 const MINUTES_PER_DAY = 24 * 60;
+const DAYS_PER_WEEK = 7;
 
 /**
- * A normalized block window: the site is blocked between `start` and `end`.
- * @typedef {{ enabled: boolean; start: string; end: string }} AccessWindow
+ * A normalized block window: the site is blocked between `start` and `end`,
+ * optionally only on the listed weekdays (0 = Sunday .. 6 = Saturday; omitted = every day).
+ * An overnight window belongs to the day it starts on.
+ * @typedef {{ enabled: boolean; start: string; end: string; days?: number[] }} AccessWindow
  */
 
 /**
@@ -49,24 +52,71 @@ function normalizeTimeString(value) {
 }
 
 /**
- * Coerce an arbitrary value into a valid {@link AccessWindow}, or null.
+ * Coerce a raw weekday list into a sorted, de-duplicated array of 0-6.
+ * Returns null when the list is missing, empty, invalid or covers all seven
+ * days, so "every day" has a single canonical representation (no `days`).
+ * @param {unknown} value
+ * @returns {number[] | null}
+ */
+function normalizeDays(value) {
+    if (!Array.isArray(value)) return null;
+
+    const days = Array.from(new Set(
+        value.filter((day) => Number.isInteger(day) && day >= 0 && day < DAYS_PER_WEEK)
+    )).sort((a, b) => a - b);
+
+    if (days.length === 0 || days.length === DAYS_PER_WEEK) return null;
+    return days;
+}
+
+/**
  * @param {unknown} window
  * @returns {AccessWindow | null}
  */
 function normalizeAccessWindow(window) {
     if (!window || typeof window !== 'object') return null;
 
-    const raw = /** @type {{ enabled?: unknown; start?: unknown; end?: unknown }} */ (window);
+    const raw = /** @type {{ enabled?: unknown; start?: unknown; end?: unknown; days?: unknown }} */ (window);
     const start = normalizeTimeString(typeof raw.start === 'string' ? raw.start : '');
     const end = normalizeTimeString(typeof raw.end === 'string' ? raw.end : '');
 
     if (!start || !end || start === end) return null;
 
+    const days = normalizeDays(raw.days);
+
     return {
         enabled: raw.enabled !== false,
         start,
-        end
+        end,
+        ...(days ? { days } : {})
     };
+}
+
+/**
+ * True when `date` falls inside the block window, honouring the weekday filter.
+ * @param {number} startMinutes
+ * @param {number} endMinutes
+ * @param {number[] | undefined} days
+ * @param {Date} date
+ */
+function isInsideBlockWindow(startMinutes, endMinutes, days, date) {
+    const minutes = date.getHours() * 60 + date.getMinutes();
+    const weekday = date.getDay();
+
+    // The weekday the window belongs to (the day it starts on).
+    let ownerDay;
+    if (startMinutes < endMinutes) {
+        if (minutes < startMinutes || minutes >= endMinutes) return false;
+        ownerDay = weekday;
+    } else if (minutes >= startMinutes) {
+        ownerDay = weekday;
+    } else if (minutes < endMinutes) {
+        ownerDay = (weekday + DAYS_PER_WEEK - 1) % DAYS_PER_WEEK;
+    } else {
+        return false;
+    }
+
+    return !days || days.includes(ownerDay);
 }
 
 /**
@@ -89,43 +139,29 @@ function getAccessWindowState(window, now = new Date()) {
         return { allowed: false, configured: false, nextTransitionAt: null };
     }
 
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const crossesMidnight = startMinutes > endMinutes;
-    const dayStart = new Date(now);
-    dayStart.setHours(0, 0, 0, 0);
+    const inWindow = isInsideBlockWindow(startMinutes, endMinutes, normalized.days, now);
 
-    // True when the current time falls inside the block window.
-    const inWindow = crossesMidnight
-        ? currentMinutes >= startMinutes || currentMinutes < endMinutes
-        : currentMinutes >= startMinutes && currentMinutes < endMinutes;
-
+    // The state can only flip at a start/end boundary, so scan the boundaries
+    // over the coming week for the first one that changes the answer.
     let nextTransitionAt = null;
+    const boundaries = [startMinutes, endMinutes].sort((a, b) => a - b);
 
-    if (crossesMidnight) {
-        if (currentMinutes >= startMinutes) {
-            // Inside the [start, 24:00) leg — blocking ends at 'end' tomorrow.
-            const tomorrow = new Date(dayStart);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            nextTransitionAt = tomorrow.getTime() + (endMinutes * 60 * 1000);
-        } else if (currentMinutes < endMinutes) {
-            // Inside the [00:00, end) leg — blocking ends at 'end' today.
-            nextTransitionAt = dayStart.getTime() + (endMinutes * 60 * 1000);
-        } else {
-            // In the allowed gap between 'end' and 'start' — blocking begins at 'start' today.
-            nextTransitionAt = dayStart.getTime() + (startMinutes * 60 * 1000);
-        }
-    } else {
-        if (currentMinutes < startMinutes) {
-            // Before the window — blocking begins at 'start' today.
-            nextTransitionAt = dayStart.getTime() + (startMinutes * 60 * 1000);
-        } else if (currentMinutes < endMinutes) {
-            // Inside the window — blocking ends at 'end' today.
-            nextTransitionAt = dayStart.getTime() + (endMinutes * 60 * 1000);
-        } else {
-            // After the window — blocking begins at 'start' tomorrow.
-            const tomorrow = new Date(dayStart);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            nextTransitionAt = tomorrow.getTime() + (startMinutes * 60 * 1000);
+    scan: for (let offset = 0; offset <= DAYS_PER_WEEK + 1; offset += 1) {
+        for (const minutes of boundaries) {
+            const boundary = new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate() + offset,
+                Math.floor(minutes / 60),
+                minutes % 60,
+                0,
+                0
+            );
+            if (boundary.getTime() <= now.getTime()) continue;
+            if (isInsideBlockWindow(startMinutes, endMinutes, normalized.days, boundary) !== inWindow) {
+                nextTransitionAt = boundary.getTime();
+                break scan;
+            }
         }
     }
 
@@ -158,7 +194,8 @@ function buildBlockedSitesSignature(sites) {
                     normalized.is_active === false ? '0' : '1',
                     accessWindow?.enabled === false ? '0' : '1',
                     accessWindow?.start || '',
-                    accessWindow?.end || ''
+                    accessWindow?.end || '',
+                    ...(accessWindow?.days ? [accessWindow.days.join('')] : [])
                 ].join(':');
             })
             .filter(Boolean)
@@ -170,6 +207,7 @@ function buildBlockedSitesSignature(sites) {
 const SCHEDULE_UTILS = {
     parseTimeToMinutes,
     normalizeTimeString,
+    normalizeDays,
     normalizeAccessWindow,
     getAccessWindowState,
     buildBlockedSitesSignature
