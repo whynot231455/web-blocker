@@ -34,7 +34,7 @@ const DASHBOARD_PATHS = {
 
 /**
  * @param {string[]} urls
- * @param {Record<string, { enabled?: boolean; start?: string; end?: string } | null>} [schedules]
+ * @param {Record<string, { enabled?: boolean; start?: string; end?: string; days?: number[] } | null>} [schedules]
  */
 function buildBlockedSitesSignature(urls, schedules = {}) {
   return guestSiteStore.project(guestSiteStore.fromLegacyUrls(urls, schedules)).signature;
@@ -621,7 +621,7 @@ async function syncFromSupabase() {
       .filter(u => u !== null);
 
     // Carry each site's block window so content.js can enforce schedules.
-    /** @type {Record<string, { enabled?: boolean; start?: string; end?: string } | null>} */
+    /** @type {Record<string, { enabled?: boolean; start?: string; end?: string; days?: number[] } | null>} */
     const schedules = {};
     for (const site of (Array.isArray(sitesData) ? sitesData : [])) {
       const url = site && site.url ? normalizeHostname(site.url) : null;

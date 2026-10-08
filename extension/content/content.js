@@ -136,7 +136,7 @@
     }
 
     /**
-     * @param {{ countdownDuration: number; currentSchedule: { enabled?: boolean; start?: string; end?: string } | null; configured: boolean }} options
+     * @param {{ countdownDuration: number; currentSchedule: { enabled?: boolean; start?: string; end?: string; days?: number[] } | null; configured: boolean }} options
      */
     function showBlockedOverlay(options) {
         if (document.getElementById('ctrl-blck-overlay')) return;
@@ -219,7 +219,12 @@
             return `Block window ${schedule.start} to ${schedule.end} is disabled, so this site remains blocked.`;
         }
 
-        return `This site is blocked from ${schedule.start} to ${schedule.end} local time.`;
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const days = Array.isArray(schedule.days) && schedule.days.length
+            ? ` on ${schedule.days.map((day) => dayNames[day]).filter(Boolean).join(', ')}`
+            : '';
+
+        return `This site is blocked from ${schedule.start} to ${schedule.end}${days} local time.`;
     }
 
     function removeBlockingOverlay() {

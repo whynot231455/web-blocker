@@ -8,5 +8,6 @@ export interface BlockedSite {
         enabled: boolean;
         start: string;
         end: string;
+        days?: number[];
     } | null;
 }
