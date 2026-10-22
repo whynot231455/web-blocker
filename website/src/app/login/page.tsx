@@ -82,7 +82,7 @@ export default function LoginPage() {
         style={{ boxShadow: '6px 6px 0px #000' }}
       >
         {/* Header */}
-        <Link href="/" className="flex flex-col items-center mb-8 gap-3 hover:opacity-80 transition-opacity">
+        <div className="flex flex-col items-center mb-8 gap-3">
           <Image
             src="/icons/logopic1-48.png"
             alt="Logo"
@@ -97,7 +97,7 @@ export default function LoginPage() {
           <p style={{ fontSize: '8px', color: '#555', textAlign: 'center' }}>
             get started below
           </p>
-        </Link>
+        </div>
 
         {/* Info / Error banners */}
         {error && (
