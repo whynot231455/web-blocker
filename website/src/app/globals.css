@@ -1,11 +1,5 @@
 @import "tailwindcss";
 
-@font-face {
-  font-family: 'Press Start 2P';
-  src: url('./fonts/PressStart2P-Regular.ttf') format('truetype');
-  font-display: swap;
-}
-
 :root {
   --background: #ffffff;
   --foreground: #000000;
@@ -33,8 +27,19 @@
 html,
 body,
 * {
-  font-family: 'Press Start 2P', cursive !important;
+  font-family: var(--font-press-start), monospace !important;
   box-sizing: border-box;
+}
+
+/* Text selection highlight */
+::selection {
+  background: #FF4141;
+  color: #FFFFFF;
+}
+
+::-moz-selection {
+  background: #FF4141;
+  color: #FFFFFF;
 }
 
 body {
