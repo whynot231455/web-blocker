@@ -26,9 +26,13 @@ Here are some of the project's best features:
 *   Quick add functionality - one-click to block the current website
 *   Cloud sync - block list synced across devices via Supabase
 *   Guest mode - use the blocker locally without an account
-*   Scheduled access windows - allow sites only within set time ranges
+*   Block windows - block a site only during a daily time range (overnight ranges like 22:00–06:00 supported)
+*   Weekday scheduling - limit a block window to selected days of the week (e.g. weekdays 9:00–17:00)
+*   Background sync - the extension keeps pulling your block list every 2 minutes, even with the dashboard closed
 *   Focus sessions with stats for Today, Week, and All-time
-*   Account auth with email/password or Google/GitHub OAuth
+*   Account auth with email/password or Google/GitHub OAuth, plus a Switch Account flow
+*   Install page - guided, step-by-step extension setup that detects when the extension is active
+*   SEO-ready landing page - metadata, sitemap, `robots.txt`, and generated Open Graph/Twitter images
 
 <h2>💻 Built with</h2>
 
@@ -49,20 +53,26 @@ web-blocker/
 ├── extension/                # Chrome Extension source code
 │   ├── background/           # Service workers (sync, background logic)
 │   ├── content/              # Content scripts (blocking overlays, dashboard sync)
-│   ├── lib/                  # Shared utilities and constants
+│   ├── lib/                  # Shared utilities, guest store, sync constants
 │   ├── popup/                # Extension popup UI (HTML/CSS/JS)
 │   └── manifest.json         # Extension configuration
 ├── website/                  # Next.js Dashboard
 │   └── src/
-│       ├── app/              # Next.js App Router pages
+│       ├── app/              # App Router pages (landing, login, dashboard, sessions,
+│       │                     #   settings, install, account, privacy), API route,
+│       │                     #   sitemap/robots and OG image generation
 │       ├── components/       # UI Components (auth, dashboard, layout, ui)
+│       ├── config/           # Env validation, site/SEO constants, sync contract import
+│       ├── data/             # Static content (landing page FAQ)
 │       ├── hooks/            # Custom logic (useAuth, useBlockedSites, etc.)
-│       ├── lib/              # Shared library instances (Supabase client)
+│       ├── lib/              # Supabase client, schedule/URL helpers, SEO helpers
 │       └── types/            # TypeScript interfaces
 ├── shared/                   # Logic shared between extension and website
 │   ├── url-utils.js          # URL normalization/validation source of truth
-│   └── schedule-utils.js     # Access-window schedule logic
-└── scripts/                  # Build and config scripts
+│   ├── schedule-utils.js     # Block-window schedule logic (times + weekdays)
+│   └── sync-contract.json    # Storage keys, message actions and origins used by both sides
+├── scripts/                  # Build and config scripts
+└── *.test.js                 # Node test suite (normalization, schedules, sync, guest mode)
 ```
 
 ## 🚀 Getting Started
@@ -78,7 +88,7 @@ create table public.blocked_sites (
   url text,
   is_active boolean default true,
   created_at timestamptz default now(),
-  access_window jsonb
+  access_window jsonb       -- { "enabled": bool, "start": "HH:MM", "end": "HH:MM", "days": [0-6] }
 );
 
 alter table public.blocked_sites enable row level security;
@@ -89,6 +99,10 @@ create policy "blocked_sites_own_all" on public.blocked_sites
   with check (user_id = auth.uid());
 ```
 
+`access_window` describes when the site is **blocked**. Outside the window the site is accessible, and no window (or a disabled one) means the site is blocked all the time. `days` is optional (0 = Sunday … 6 = Saturday); when omitted the window applies every day. An overnight window belongs to the day it starts on, so Mon 22:00–06:00 also covers early Tuesday.
+
+To enable OAuth sign-in, turn on the **Google** and/or **GitHub** providers in your Supabase project (Authentication → Providers) and add the dashboard's `/auth/callback` URL to the allowed redirect URLs.
+
 ### Setup
 
 1. Clone this repository and install dependencies:
@@ -97,19 +111,18 @@ create policy "blocked_sites_own_all" on public.blocked_sites
 npm install
 ```
 
-2. Configure the website environment variables:
-
-```bash
-cp website/.env.example website/.env.local
-```
-
-Fill in your Supabase project URL and anon key in `website/.env.local`:
+2. Configure the website environment variables by creating `website/.env.local`:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 NEXT_PUBLIC_SKIP_EXTENSION_CHECK=false
+# Optional: canonical site URL for sitemap, robots and Open Graph metadata
+# (defaults to https://ctrl-blck.vercel.app)
+NEXT_PUBLIC_SITE_URL=https://your-domain.example
 ```
+
+`NEXT_PUBLIC_SKIP_EXTENSION_CHECK=true` skips the "extension installed" gate, which is handy when developing the dashboard without the extension.
 
 3. Generate the extension config (reads from `website/.env.local` and writes `extension/lib/config.js`, which is gitignored):
 
@@ -130,8 +143,12 @@ npm run dev:web
 | `npm run dev:web` | Start the website dashboard in development mode |
 | `npm run build:web` | Build the website for production |
 | `npm run lint:web` | Lint the website |
+| `npm test` | Run the Node test suite (`node --test ./*.test.js`) |
+| `npm run typecheck -w website` | Type-check the website |
 | `npm run config:extension` | Generate extension config from `.env.local` |
-| `npm run build:extension:dev` | Build a development version of the extension |
+| `npm run build:extension:dev` | Build a dev extension into `extension-dev/` (pointed at `http://localhost:3000`) |
+
+`npm run dev:web` and `npm run build:web` run `config:extension` automatically.
 
 ## 🔌 Loading the Extension
 
@@ -141,18 +158,25 @@ npm run dev:web
 4. Click "Load unpacked" and select the `extension` folder
 5. The CTRL+BLCK icon should appear in your browser toolbar
 
+For local dashboard development, run `npm run build:extension:dev` and load the generated `extension-dev` folder instead. It talks to `http://localhost:3000` rather than the production dashboard.
+
+End users can also follow the guided steps on the dashboard's `/install` page, which downloads the extension as a zip.
+
 ## 📖 How to Use
 
 1. **Quick Block**: Click the CTRL+BLCK icon while on any website and hit "ADD SITE +"
 2. **Manage Sites**: Open the web dashboard to add, remove, or toggle sites
 3. **Remove Sites**: Use the delete icon next to any site in your block list
 4. **Search & Filter**: Use the search bar to find specific blocked sites quickly
-5. **Schedule Access**: Set allowed time windows so a site only opens during your chosen hours
+5. **Schedule Blocking**: On the Sessions page, give a site a block window (start/end time) and pick the days of the week it applies to. The site is blocked during the window and accessible outside it; sites without a window stay blocked all day
+6. **Guest Mode**: Skip sign-up to keep your list locally in the browser; sign in later to sync it across devices
+7. **Check Sync**: Settings → Sync Status shows whether the extension is connected and when it last synced
 
 ### Pro Tips:
 - The extension shows only the last 5 sites in the pop-up for quick access
 - Use the web dashboard for full site management
 - Sites are blocked immediately after adding - just reload the page!
+- Changes made on another device are picked up by the extension within a couple of minutes, even if no dashboard tab is open
 
 ## 📝 Feedback & Suggestions
 
