@@ -5,6 +5,7 @@
  *   - manifest name / icons / default_title -> Ctrl+Blck DEV + logopic1-dev-*
  *   - dashboardOrigins / defaultDashboardOrigin -> localhost only
  *   - externally_connectable -> localhost only
+ *   - dashboard-sync.js content script matches -> localhost only
  *   - popup logo -> logopic1-dev-128.png
  *   - config.js copied from extension/lib/config.js (same Supabase project)
  *
@@ -86,8 +87,15 @@ function build() {
     matches: [`${DEV_ORIGIN}/*`]
   };
 
+  // The dashboard bridge content script only runs on the dashboard origin.
+  for (const script of manifest.content_scripts || []) {
+    if ((script.js || []).includes('content/dashboard-sync.js')) {
+      script.matches = [`${DEV_ORIGIN}/*`];
+    }
+  }
+
   writeJson(manifestPath, manifest);
-  console.log('  Updated manifest.json (name, icons, externally_connectable)');
+  console.log('  Updated manifest.json (name, icons, externally_connectable, dashboard-sync matches)');
 
   // 3. Rewrite lib/sync-constants.js (dashboardOrigins / defaultDashboardOrigin)
   const syncConstantsPath = path.join(DEST, 'lib', 'sync-constants.js');
