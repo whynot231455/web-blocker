@@ -31,9 +31,6 @@ const MESSAGE_ACTIONS = syncConfig.messageActions;
 const guestSiteStore = globalThis.CTRL_BLCK_GUEST_SITE_STORE;
 
 const DEFAULT_DASHBOARD_ORIGIN = syncConfig.defaultDashboardOrigin;
-const DASHBOARD_PATHS = {
-  login: syncConfig.dashboardPaths.login
-};
 
 /**
  * @param {string[]} urls
@@ -976,13 +973,6 @@ async function clearSitesFromSupabase() {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to clear sites' };
   }
 }
-
-/** @param {chrome.runtime.InstalledDetails} details */
-chrome.runtime.onInstalled.addListener(details => {
-  if (details.reason === 'install') {
-    chrome.tabs.create({ url: `${DEFAULT_DASHBOARD_ORIGIN}${DASHBOARD_PATHS.login}` });
-  }
-});
 
 chrome.runtime.onStartup.addListener(() => {
   void syncFromSupabase();
