@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { getSafeReturnTo } from '@/lib/guestRedirect';
 
 function AuthCallback() {
     const router = useRouter();
@@ -12,10 +13,7 @@ function AuthCallback() {
     useEffect(() => {
         // Preserve the caller's return target through the OAuth round trip.
         // Must be a same-origin path — the code URL is attacker-influenced.
-        const rawReturnTo = searchParams.get('returnTo');
-        const returnTo = rawReturnTo && rawReturnTo.startsWith('/') && !rawReturnTo.startsWith('//')
-            ? rawReturnTo
-            : '/dashboard';
+        const returnTo = getSafeReturnTo(searchParams.get('returnTo'));
         const loginWithError = (message: string) =>
             router.replace(`/login?error=${encodeURIComponent(message)}&returnTo=${encodeURIComponent(returnTo)}`);
 

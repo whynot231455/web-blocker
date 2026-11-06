@@ -21,7 +21,6 @@ if (!syncConfig) {
     console.error('CTRL+BLCK: Missing sync constants');
 } else {
     const {
-        dashboardMetaName,
         dashboardOrigins,
         storageKeys,
         messageActions
@@ -34,10 +33,13 @@ if (!syncConfig) {
     const BLOCKED_SITES_SIGNATURE_KEY = storageKeys.blockedSitesSignature;
     const BLOCKED_SITE_SCHEDULES_KEY = storageKeys.blockedSiteSchedules || 'blocked_site_schedules';
 
+    // The manifest already limits this script to the dashboard; the origin
+    // check is a second guard. Never activate on page-controlled markers (e.g.
+    // a <meta> tag): this bridge exposes the user's block list and session
+    // state, so any site could read it by copying the marker.
     const isKnownOrigin = dashboardOrigins.includes(window.location.origin);
-    const hasDashboardMarker = Boolean(document.querySelector(`meta[name="${dashboardMetaName}"]`));
 
-    if (isKnownOrigin || hasDashboardMarker) {
+    if (isKnownOrigin) {
         // Set DOM dataset marker to signal that the extension is installed
         document.documentElement.dataset.ctrlBlckInstalled = 'true';
 

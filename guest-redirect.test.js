@@ -30,9 +30,18 @@ function hasGuestSitesForRedirect(storage) {
     }
 }
 
+const RETURN_TO_BASE = 'https://return-to.invalid';
+
 function getSafeReturnTo(raw, fallback = '/dashboard') {
-    if (raw && raw.startsWith('/') && !raw.startsWith('//')) return raw;
-    return fallback;
+    if (!raw || !raw.startsWith('/')) return fallback;
+    try {
+        const url = new URL(raw, RETURN_TO_BASE);
+        if (url.origin !== RETURN_TO_BASE) return fallback;
+        const path = `${url.pathname}${url.search}${url.hash}`;
+        return new URL(path, RETURN_TO_BASE).origin === RETURN_TO_BASE ? path : fallback;
+    } catch {
+        return fallback;
+    }
 }
 
 test('guest with saved sites redirects', () => {
@@ -69,6 +78,16 @@ test('entries without URLs do not count as saved sites', () => {
 test('safe return target passes through same-origin paths', () => {
     assert.strictEqual(getSafeReturnTo('/dashboard'), '/dashboard');
     assert.strictEqual(getSafeReturnTo('/settings/privacy-security'), '/settings/privacy-security');
+    assert.strictEqual(getSafeReturnTo('/dashboard?tab=sites#list'), '/dashboard?tab=sites#list');
+});
+
+test('safe return target rejects paths the browser resolves off-site', () => {
+    // searchParams.get() decodes %5C / %09 / %0A before the value reaches us.
+    assert.strictEqual(getSafeReturnTo('/\\evil.com'), '/dashboard');
+    assert.strictEqual(getSafeReturnTo('/\\/evil.com'), '/dashboard');
+    assert.strictEqual(getSafeReturnTo('/\t/evil.com'), '/dashboard');
+    assert.strictEqual(getSafeReturnTo('/\n/evil.com'), '/dashboard');
+    assert.strictEqual(getSafeReturnTo('/.//evil.com'), '/dashboard');
 });
 
 test('safe return target rejects open redirects and empties', () => {

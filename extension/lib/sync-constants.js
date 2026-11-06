@@ -2,6 +2,10 @@ globalThis.CTRL_BLCK_SYNC = {
     debugMode: false, // Set to true to enable verbose console logging across all content scripts
     supabaseUrl: globalThis.CTRL_BLCK_CONFIG?.supabaseUrl || 'https://oufqvdkybwwdxobjchze.supabase.co',
     supabaseKey: globalThis.CTRL_BLCK_CONFIG?.supabaseKey || '',
+    // When false (the DEV build) the extension never reads, stores or sends a
+    // Supabase session and makes no request to Supabase, so it can not touch
+    // the live site's data. scripts/build-extension-dev.js flips this.
+    cloudSyncEnabled: true,
     dashboardMetaName: 'ctrl-blck-dashboard',
     dashboardOrigins: ['https://ctrl-blck.vercel.app'],
     defaultDashboardOrigin: 'https://ctrl-blck.vercel.app',

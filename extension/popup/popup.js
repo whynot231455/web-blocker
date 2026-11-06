@@ -42,6 +42,9 @@ function getInternalPageType(url) {
 }
 
 const defaultDashboardOrigin = syncConfig.defaultDashboardOrigin;
+// False in the DEV build: a stored Supabase session is ignored, so add/delete/
+// clear only ever change this browser's local list.
+const cloudSyncEnabled = syncConfig.cloudSyncEnabled !== false;
 const dashboardPaths = syncConfig.dashboardPaths;
 
 /**
@@ -134,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     storageKeys.supabaseSession,
                     'isGuest'
                 ]);
-                if (isGuest || !supabaseSession) {
+                if (!cloudSyncEnabled || isGuest || !supabaseSession) {
                     const sites = await getGuestSiteRecords();
                     await replaceGuestSiteRecords(sites.filter(site => site.url !== hostname));
                 } else {
@@ -178,7 +181,7 @@ async function updateSyncStatus() {
         statusDiv.style.fontSize = '8px';
         statusDiv.style.marginTop = '8px';
 
-        if (supabaseSession) {
+        if (cloudSyncEnabled && supabaseSession) {
             statusDiv.style.color = '#4CAF50';
             statusDiv.textContent = `● Synced with Dashboard (${activeOriginLabel})`;
         } else if (isGuest) {
@@ -459,7 +462,7 @@ async function add_elements() {
 
         if (!storedHostnames.includes(currentHostname)) {
             const normalizedHostname = syncConfig.normalizeHostname(currentTabURL);
-            if (results.isGuest || !results[storageKeys.supabaseSession]) {
+            if (!cloudSyncEnabled || results.isGuest || !results[storageKeys.supabaseSession]) {
                 const sites = await getGuestSiteRecords();
                 await replaceGuestSiteRecords([{ url: normalizedHostname, is_active: true }, ...sites]);
             } else {
@@ -550,14 +553,14 @@ async function removeAll_elements() {
             'isGuest'
         ]);
 
-        if (supabaseSession && !isGuest) {
+        if (cloudSyncEnabled && supabaseSession && !isGuest) {
             const response = await chrome.runtime.sendMessage({ action: messageActions.clearSitesFromSupabase });
             if (response && response.success === false && response.error !== 'Not authenticated') {
                 throw new Error(response.error || 'Failed to clear dashboard sites');
             }
         }
 
-        if (isGuest || !supabaseSession) {
+        if (!cloudSyncEnabled || isGuest || !supabaseSession) {
             await replaceGuestSiteRecords([]);
         } else {
             await chrome.storage.local.set({

@@ -13,7 +13,7 @@
     "lint:web": "npm run lint -w website",
     "test": "node --test ./*.test.js",
     "config:extension": "node scripts/generate-extension-config.js",
-    "build:extension:dev": "npm run config:extension && node scripts/build-extension-dev.js"
+    "build:extension:dev": "node scripts/build-extension-dev.js"
   },
   "devDependencies": {
     "@types/chrome": "^0.1.40",

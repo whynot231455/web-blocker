@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { hasGuestSitesForRedirect } from '@/lib/guestRedirect';
+import { getSafeReturnTo, hasGuestSitesForRedirect } from '@/lib/guestRedirect';
 import { GitHubIcon, GoogleIcon } from '@/components/auth/ProviderIcons';
 
 export default function LoginPage() {
@@ -20,11 +20,11 @@ export default function LoginPage() {
   const router = useRouter();
 
   // Same-origin return target (e.g. /dashboard from the dashboard guard).
-  // Never trust raw query input: must be a path, never // or a scheme.
+  // Never trust raw query input: getSafeReturnTo rejects anything that
+  // resolves off-site.
   const returnTo = React.useMemo(() => {
     if (typeof window === 'undefined') return '/dashboard';
-    const raw = new URLSearchParams(window.location.search).get('returnTo');
-    return raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/dashboard';
+    return getSafeReturnTo(new URLSearchParams(window.location.search).get('returnTo'));
   }, []);
 
   // A returning visitor whose Google/GitHub session is still valid should never see
