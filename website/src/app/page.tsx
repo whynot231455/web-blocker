@@ -15,12 +15,23 @@ import {
   Zap,
 } from 'lucide-react';
 import { LandingHeaderCta } from '@/components/layout/LandingHeaderCta';
-import { GITHUB_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/config/site';
+import { GITHUB_URL, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from '@/config/site';
 import { LANDING_FAQ } from '@/data/landing-faq';
 import { jsonLd } from '@/lib/seo';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
+  // A page-level openGraph replaces the layout's whole openGraph object, so the
+  // shared fields are repeated here. `url` fills the og:url tag that Facebook's
+  // debugger reports as missing.
+  openGraph: {
+    type: 'website',
+    url: '/',
+    siteName: SITE_NAME,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    locale: 'en_US',
+  },
 };
 
 const FEATURES = [
