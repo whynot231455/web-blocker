@@ -8,6 +8,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { getSafeReturnTo, hasGuestSitesForRedirect } from '@/lib/guestRedirect';
 import { GitHubIcon, GoogleIcon } from '@/components/auth/ProviderIcons';
+import { useExtensionDetected } from '@/hooks/useExtensionDetected';
+import { detectEnvironment } from '@/lib/browserSupport';
+import { ExtensionRequired } from '@/components/layout/ExtensionRequired';
 
 export default function LoginPage() {
   const [pendingProvider, setPendingProvider] = React.useState<'google' | 'github' | null>(null);
@@ -17,6 +20,7 @@ export default function LoginPage() {
     return new URLSearchParams(window.location.search).get('error');
   });
   const { user, isGuest, loading, continueAsGuest, signInWithGoogle, signInWithGithub } = useAuth();
+  const { status: extensionStatus } = useExtensionDetected();
   const router = useRouter();
 
   // Same-origin return target (e.g. /dashboard from the dashboard guard).
@@ -70,6 +74,31 @@ export default function LoginPage() {
         <p style={{ fontSize: '8px', letterSpacing: '0.1em' }}>LOADING...</p>
       </div>
     );
+  }
+
+  // The app only works with the Chrome extension, so say so before the user is
+  // sent off to Google or GitHub to sign in. `loading` is false here, so this
+  // runs on the client only and reading the browser is safe.
+  const environment = detectEnvironment();
+
+  // Phones and tablets can never install the extension: no need to probe.
+  if (environment === 'mobile') {
+    return <ExtensionRequired environment={environment} />;
+  }
+
+  if (extensionStatus === 'checking') {
+    return (
+      <div
+        className="theme-static-light min-h-screen flex items-center justify-center bg-white"
+        style={{ fontFamily: "'Press Start 2P', cursive" }}
+      >
+        <p style={{ fontSize: '8px', letterSpacing: '0.1em' }}>LOADING...</p>
+      </div>
+    );
+  }
+
+  if (extensionStatus !== 'installed') {
+    return <ExtensionRequired environment={environment} />;
   }
 
   return (
