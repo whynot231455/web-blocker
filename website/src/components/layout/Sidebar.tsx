@@ -5,17 +5,37 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Clock, Settings, CircleUser } from 'lucide-react';
 import Image from 'next/image';
+import { useAvatarUrl } from '@/hooks/useAvatarUrl';
 
 export const Sidebar: React.FC = () => {
   const [isPinned] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const pathname = usePathname();
+  const avatarUrl = useAvatarUrl();
+
+  // Show the profile picture in place of the generic account icon. Guests and
+  // accounts without a picture (or one that fails to load) keep the icon.
+  const accountIcon =
+    avatarUrl && !avatarFailed ? (
+      <Image
+        src={avatarUrl}
+        alt="Your profile picture"
+        width={24}
+        height={24}
+        className="h-6 w-6 rounded-full border-2 border-black object-cover"
+        onError={() => setAvatarFailed(true)}
+        unoptimized
+      />
+    ) : (
+      <CircleUser size={22} />
+    );
 
   const menuItems = [
     { icon: <LayoutDashboard size={22} />, label: 'Dashboard', href: '/dashboard' },
     { icon: <Clock size={22} />, label: 'Sessions', href: '/sessions' },
     { icon: <Settings size={22} />, label: 'Settings', href: '/settings' },
-    { icon: <CircleUser size={22} />, label: 'Account', href: '/account' },
+    { icon: accountIcon, label: 'Account', href: '/account' },
   ];
 
   const isExpanded = isPinned || isHovered;
