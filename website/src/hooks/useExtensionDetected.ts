@@ -1,6 +1,6 @@
 //'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { EXTENSION_ID } from '@/config/sync';
 
 interface ChromeRuntime {
@@ -30,7 +30,6 @@ export type ExtensionStatus = 'checking' | 'installed' | 'not_installed';
  */
 export function useExtensionDetected() {
   const [status, setStatus] = useState<ExtensionStatus>('checking');
-  const checkedRef = useRef(false);
 
   useEffect(() => {
     // Dev-mode bypass
@@ -39,10 +38,10 @@ export function useExtensionDetected() {
       return;
     }
 
-    // Avoid double-firing in StrictMode
-    if (checkedRef.current) return;
-    checkedRef.current = true;
-
+    // No "already checked" guard here. In development StrictMode runs this effect,
+    // cleans it up (which marks the first run cancelled) and runs it again; skipping
+    // the second run would leave the first, cancelled run unable to report a result
+    // and the status stuck on 'checking' forever. A repeat ping is harmless.
     let cancelled = false;
     let isDetected = false;
 
