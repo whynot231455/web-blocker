@@ -6,6 +6,11 @@ import path from "path";
 const websiteRoot = fileURLToPath(new URL(".", import.meta.url));
 const monorepoRoot = path.resolve(websiteRoot, "..");
 
+// React's development build uses eval() to rebuild call stacks for debugging,
+// so `next dev` needs 'unsafe-eval'. Production builds never use eval(), so
+// the deployed policy must not allow it.
+const scriptSrcEval = process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : '';
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: monorepoRoot,
@@ -48,7 +53,7 @@ const nextConfig: NextConfig = {
             // For maximum security in production, consider using CSP nonces.
             value: `
               default-src 'self';
-              script-src 'self' 'unsafe-inline' https://*.supabase.co;
+              script-src 'self' 'unsafe-inline'${scriptSrcEval} https://*.supabase.co;
               style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
               font-src 'self' https://fonts.gstatic.com;
               img-src 'self' data: https://*.supabase.co https://*.google.com https://*.googleusercontent.com https://*.gstatic.com https://*.ggpht.com https://icon.horse;
