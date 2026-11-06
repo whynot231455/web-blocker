@@ -7,7 +7,9 @@
  *   - externally_connectable -> localhost only
  *   - dashboard-sync.js content script matches -> localhost only
  *   - popup logo -> logopic1-dev-128.png
- *   - config.js copied from extension/lib/config.js (same Supabase project)
+ *   - cloud sync OFF: no Supabase URL/key, cloudSyncEnabled=false, stub
+ *     config.js. The dev extension is local-only, so nothing it does (add,
+ *     delete, clear) can reach the database the live site (Vercel) reads.
  *
  * The live extension stays the single source of truth. Run this after editing
  * extension/ to refresh the dev build:
@@ -18,13 +20,18 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'extension');
-const DEST = path.join(ROOT, 'extension-dev');
+const DEFAULT_DEST = path.join(ROOT, 'extension-dev');
 
 const DEV_EXTENSION_NAME = 'Ctrl+Blck DEV';
 const DEV_ORIGIN = 'http://localhost:3000';
 const DEV_ICON_PREFIX = 'logopic1-dev';
 const LIVE_ICON_PREFIX = 'logopic1';
 const DEV_ICON_SIZES = [16, 32, 48, 128];
+
+// Hosts of the live deployment (Vercel site + its Supabase project). None
+// of them may survive in the dev build's manifest or config, otherwise dev and
+// live are connected again.
+const LIVE_MARKERS = ['ctrl-blck.vercel.app', 'oufqvdkybwwdxobjchze.supabase.co'];
 
 function copyRecursive(from, to) {
   fs.mkdirSync(to, { recursive: true });
@@ -47,7 +54,7 @@ function writeJson(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n');
 }
 
-function build() {
+function build(DEST = process.env.EXTENSION_DEV_OUT || DEFAULT_DEST) {
   console.log('Building DEV extension...');
 
   if (!fs.existsSync(SRC)) {
@@ -83,6 +90,10 @@ function build() {
   manifest.icons = devIcons;
   manifest.action.default_icon = devIcons;
 
+  // No Supabase access in dev: drop the live project's explicit host grant.
+  manifest.host_permissions = (manifest.host_permissions || [])
+    .filter((host) => !host.includes('.supabase.co'));
+
   manifest.externally_connectable = {
     matches: [`${DEV_ORIGIN}/*`]
   };
@@ -95,21 +106,31 @@ function build() {
   }
 
   writeJson(manifestPath, manifest);
-  console.log('  Updated manifest.json (name, icons, externally_connectable, dashboard-sync matches)');
+  console.log('  Updated manifest.json (name, icons, externally_connectable, dashboard-sync matches, no Supabase host)');
 
-  // 3. Rewrite lib/sync-constants.js (dashboardOrigins / defaultDashboardOrigin)
+  // 3. Rewrite lib/sync-constants.js (dashboard origins + cloud sync off)
   const syncConstantsPath = path.join(DEST, 'lib', 'sync-constants.js');
   let syncConstants = fs.readFileSync(syncConstantsPath, 'utf8');
-  syncConstants = syncConstants.replace(
-    /dashboardOrigins:\s*\[[^\]]*\]/,
-    `dashboardOrigins: ['${DEV_ORIGIN}']`
-  );
-  syncConstants = syncConstants.replace(
-    /defaultDashboardOrigin:\s*'[^']*'/,
-    `defaultDashboardOrigin: '${DEV_ORIGIN}'`
-  );
+  const rewrites = [
+    [/dashboardOrigins:\s*\[[^\]]*\]/, `dashboardOrigins: ['${DEV_ORIGIN}']`],
+    [/defaultDashboardOrigin:\s*'[^']*'/, `defaultDashboardOrigin: '${DEV_ORIGIN}'`],
+    // Cut the cloud link: no live Supabase URL/key fallback, sync switched off.
+    [/supabaseUrl:[^\r\n]*,/, "supabaseUrl: '',"],
+    [/supabaseKey:[^\r\n]*,/, "supabaseKey: '',"],
+    [/cloudSyncEnabled:\s*true/, 'cloudSyncEnabled: false']
+  ];
+  for (const [pattern, replacement] of rewrites) {
+    if (!pattern.test(syncConstants)) {
+      console.error(
+        `Error: lib/sync-constants.js no longer matches ${pattern}; refusing to build a dev ` +
+        'extension that could reach the live site or its database.'
+      );
+      process.exit(1);
+    }
+    syncConstants = syncConstants.replace(pattern, replacement);
+  }
   fs.writeFileSync(syncConstantsPath, syncConstants);
-  console.log('  Updated lib/sync-constants.js (dashboardOrigins -> localhost only)');
+  console.log('  Updated lib/sync-constants.js (localhost only, cloud sync disabled)');
 
   // 4. Rewrite popup/popup.html logo reference
   const popupPath = path.join(DEST, 'popup', 'popup.html');
@@ -123,17 +144,31 @@ function build() {
     console.log('  Updated popup/popup.html (logo -> dev icon)');
   }
 
-  // 5. Copy config.js (same Supabase project)
-  const srcConfig = path.join(SRC, 'lib', 'config.js');
-  const destConfig = path.join(DEST, 'lib', 'config.js');
-  if (fs.existsSync(srcConfig)) {
-    fs.copyFileSync(srcConfig, destConfig);
-    console.log('  Copied lib/config.js (same Supabase project)');
-  } else {
-    console.warn('  WARNING: extension/lib/config.js not found. Run "npm run config:extension" first.');
+  // 5. Stub config.js. The live Supabase credentials are deliberately NOT copied.
+  fs.mkdirSync(path.join(DEST, 'lib'), { recursive: true });
+  fs.writeFileSync(
+    path.join(DEST, 'lib', 'config.js'),
+    '/** DEV build: cloud sync is disabled, so there are no Supabase credentials. */\n' +
+    "globalThis.CTRL_BLCK_CONFIG = { supabaseUrl: '', supabaseKey: '' };\n"
+  );
+  console.log('  Wrote stub lib/config.js (no Supabase credentials)');
+
+  // 6. Verify nothing points at the live deployment.
+  for (const file of ['manifest.json', 'lib/sync-constants.js', 'lib/config.js']) {
+    const content = fs.readFileSync(path.join(DEST, file), 'utf8');
+    const leaked = LIVE_MARKERS.filter((marker) => content.includes(marker));
+    if (leaked.length > 0) {
+      console.error(`Error: dev build ${file} still references the live deployment (${leaked.join(', ')}).`);
+      process.exit(1);
+    }
   }
+  console.log('  Verified: no reference to the live site or its database');
 
   console.log('\nDone. Load extension-dev/ in Chrome (Load unpacked) for local development.');
 }
 
-build();
+if (require.main === module) {
+  build();
+}
+
+module.exports = { build, LIVE_MARKERS };

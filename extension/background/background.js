@@ -10,6 +10,9 @@ const syncConfig = globalThis.CTRL_BLCK_SYNC;
 const SUPABASE_URL = syncConfig.supabaseUrl;
 const SUPABASE_KEY = syncConfig.supabaseKey;
 const normalizeHostname = syncConfig.normalizeHostname;
+// False in the DEV build: no Supabase session is kept and no Supabase request
+// is ever made, so the dev extension stays isolated from the live website.
+const CLOUD_SYNC_ENABLED = syncConfig.cloudSyncEnabled !== false;
 
 const STORAGE_KEYS = {
   supabaseSession: syncConfig.storageKeys.supabaseSession,
@@ -70,6 +73,11 @@ async function replaceGuestSites(sites) {
 // Set to true to enable verbose sync logging. Mirrors debugMode in sync-constants.js.
 const DEBUG_MODE = false;
 
+if (!CLOUD_SYNC_ENABLED) {
+  // Drop any session an earlier dev build captured from the shared account.
+  void chrome.storage.local.remove([STORAGE_KEYS.supabaseSession]);
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'closeTab' && sender.tab?.id !== undefined) {
     chrome.tabs.remove(sender.tab.id).catch(error => {
@@ -79,6 +87,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === MESSAGE_ACTIONS.syncSession) {
+    if (!CLOUD_SYNC_ENABLED) return;
     chrome.storage.local.set(
       {
         [STORAGE_KEYS.supabaseSession]: message.session,
@@ -274,6 +283,10 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   // The website hands us its latest session (e.g. right after supabase-js
   // refreshed the token) so our snapshot stays on the same refresh-token chain.
   if (message?.action === 'setSupabaseSession') {
+    if (!CLOUD_SYNC_ENABLED) {
+      sendResponse({ ok: false });
+      return;
+    }
     const incoming = message.session;
     if (incoming && incoming.access_token) {
       const normalized = {
@@ -332,6 +345,9 @@ function buildHeaders(accessToken) {
  * @returns {Promise<SupabaseSession | null>}
  */
 async function getSession() {
+  // Single choke point for every Supabase read/write (sync, add, delete, clear,
+  // reconcile, token refresh): no session means no request leaves the extension.
+  if (!CLOUD_SYNC_ENABLED) return null;
   const result = await chrome.storage.local.get(STORAGE_KEYS.supabaseSession);
   const session = result[STORAGE_KEYS.supabaseSession];
   return /** @type {SupabaseSession | null} */ (session || null);
@@ -544,6 +560,10 @@ async function refreshSupabaseSession() {
 }
 
 async function syncFromSupabase() {
+  if (!CLOUD_SYNC_ENABLED) {
+    // Leave the local block list and sync status untouched.
+    return { success: false, error: 'Cloud sync is disabled in this build' };
+  }
   try {
     let session = await getSession();
     if (!session || !session.access_token || !session.user_id) {

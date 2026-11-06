@@ -64,3 +64,46 @@ test('generated dev extension limits the dashboard bridge to its dev origin', ()
     assert.ok(bridge, 'dev manifest must register content/dashboard-sync.js');
     assert.deepStrictEqual(bridge.matches, dev.dashboardOrigins.map((origin) => `${origin}/*`));
 });
+
+test('dev extension build is fully disconnected from the live site and database', () => {
+    // The dev popup used to DELETE rows in the same Supabase project the live
+    // (Vercel) site reads, so removing a site in dev removed it on the live
+    // site. The dev build must carry no live origin, no Supabase credentials
+    // and must switch every cloud code path off.
+    const os = require('node:os');
+    const { build, LIVE_MARKERS } = require('./scripts/build-extension-dev.js');
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'ctrl-blck-dev-'));
+    const originalLog = console.log;
+    try {
+        console.log = () => {};
+        build(out);
+    } finally {
+        console.log = originalLog;
+    }
+
+    try {
+        for (const file of ['manifest.json', 'lib/sync-constants.js', 'lib/config.js']) {
+            const content = fs.readFileSync(path.join(out, file), 'utf8');
+            for (const marker of LIVE_MARKERS) {
+                assert.ok(!content.includes(marker), `${file} must not reference ${marker}`);
+            }
+        }
+
+        const manifest = JSON.parse(fs.readFileSync(path.join(out, 'manifest.json'), 'utf8'));
+        assert.ok(!(manifest.host_permissions || []).some((host) => host.includes('supabase.co')));
+        assert.deepStrictEqual(manifest.externally_connectable.matches, ['http://localhost:3000/*']);
+
+        const dev = loadSyncConstants(path.relative(__dirname, path.join(out, 'lib', 'sync-constants.js')));
+        assert.strictEqual(dev.cloudSyncEnabled, false);
+        assert.strictEqual(dev.supabaseUrl, '');
+        assert.strictEqual(dev.supabaseKey, '');
+        assert.deepStrictEqual(dev.dashboardOrigins, ['http://localhost:3000']);
+    } finally {
+        fs.rmSync(out, { recursive: true, force: true });
+    }
+});
+
+test('live extension keeps cloud sync enabled', () => {
+    const live = loadSyncConstants('extension/lib/sync-constants.js');
+    assert.strictEqual(live.cloudSyncEnabled, true);
+});

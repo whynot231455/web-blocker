@@ -158,7 +158,7 @@ npm run dev:web
 4. Click "Load unpacked" and select the `extension` folder
 5. The CTRL+BLCK icon should appear in your browser toolbar
 
-For local dashboard development, run `npm run build:extension:dev` and load the generated `extension-dev` folder instead. It talks to `http://localhost:3000` rather than the production dashboard.
+For local dashboard development, run `npm run build:extension:dev` and load the generated `extension-dev` folder instead. It talks to `http://localhost:3000` rather than the production dashboard, and it is **local-only**: cloud sync is switched off and the live Supabase URL/key are not copied in, so adding, deleting or clearing sites in the dev popup never touches the data the Vercel site reads. The build fails if any live host remains in the dev manifest or config. Reload the extension at `chrome://extensions` after rebuilding.
 
 End users can also follow the guided steps on the dashboard's `/install` page, which downloads the extension as a zip.
 
