@@ -1,7 +1,7 @@
 {
   "name": "Ctrl+Blck",
   "description": "Close all the distractions while browsing.",
-  "version": "1.0",
+  "version": "1.1.0",
   "manifest_version": 3,
   "icons": {
     "16": "assets/icons/logopic1-16.png",
