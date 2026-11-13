@@ -16,8 +16,8 @@
     "build:extension:dev": "node scripts/build-extension-dev.js"
   },
   "devDependencies": {
-    "@types/chrome": "^0.1.40",
-    "lightningcss": "^1.32.0",
+    "@types/chrome": "^0.3.7",
+    "lightningcss": "^1.33.0",
     "typescript": "^6.0.3"
   }
 }
